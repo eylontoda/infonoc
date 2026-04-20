@@ -13,8 +13,8 @@
     .status-card { padding: 0.6rem 1rem !important; border-radius: 12px; color: white; border: none; transition: transform 0.2s ease; }
     .status-card-content { display: flex; align-items: center; gap: 0.75rem; }
     .status-icon { width: 34px; height: 34px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
-    .status-info h3 { font-size: 1.3rem; font-weight: 700; margin: 0; line-height: 1; min-height: 1.3rem; transition: opacity 0.2s; }
-    .status-info span { font-size: 0.65rem; text-transform: uppercase; font-weight: 600; opacity: 0.9; }
+    .status-info h3 { font-size: 1.4rem; font-weight: 700; margin: 0; line-height: 1; min-height: 1.3rem; transition: opacity 0.2s; }
+    .status-info span { font-size: 0.75rem; text-transform: uppercase; font-weight: 600; opacity: 0.9; }
     
     .active-card { background: linear-gradient(135deg, #60c4b0 0%, #006b72 100%); }
     .resolved-card { background: linear-gradient(135deg, #9ac73f 0%, #7da233 100%); }
@@ -30,7 +30,7 @@
     }
 
     #tabelaInformativos tbody td {
-        font-size: 10px !important;
+        font-size: 11px !important;
         padding: 6px 8px !important;
         vertical-align: middle;
         color: var(--text-main);
@@ -45,7 +45,7 @@
         color: var(--text-main) !important; 
         background-color: transparent !important; 
         font-weight: 600;
-        font-size: 10px !important;
+        font-size: 11px !important;
         padding: 8px !important;
         text-align: center !important; 
     }
@@ -54,7 +54,7 @@
     
     .column-filter, .column-filter-select {
         width: 100%;
-        font-size: 9px !important;
+        font-size: 10px !important;
         padding: 2px 5px !important;
         border: 1px solid var(--border-color);
         border-radius: 4px;
@@ -70,13 +70,13 @@
     .dataTables_wrapper .dataTables_length label,
     .dataTables_wrapper .dataTables_filter label {
         color: var(--text-main) !important;
-        font-size: 10px !important;
+        font-size: 11px !important;
         font-weight: bold;
     }
 
     /* Caixa de Pesquisa Geral com borda mais visível */
     .dataTables_filter input {
-        font-size: 10px !important;
+        font-size: 11px !important;
         padding: 4px 8px !important;
         height: 26px !important;
         border-radius: 6px !important;
@@ -93,7 +93,7 @@
     }
 
     .dataTables_length select {
-        font-size: 10px !important;
+        font-size: 11px !important;
         padding: 2px 5px !important;
         height: 24px !important;
         border-radius: 4px !important;
@@ -104,7 +104,7 @@
         width: 60px !important;
     }
     
-    [data-bs-theme="dark"] .page-link { background-color: var(--bg-card); border-color: var(--border-color); color: var(--text-main); font-size: 10px; }
+    [data-bs-theme="dark"] .page-link { background-color: var(--bg-card); border-color: var(--border-color); color: var(--text-main); font-size: 11px; }
     [data-bs-theme="dark"] .page-item.active .page-link { background-color: var(--primary-color); border-color: var(--primary-color); color: white; }
     
     .filter-box { background: var(--bg-card); border-radius: 12px; padding: 10px; margin-bottom: 1rem; border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 15px; }
@@ -406,7 +406,7 @@
 
                         return `
                             <div class="d-flex flex-column" style="gap: 2px; width: 100%;">
-                                <span class="fw-bold" style="color: ${color}; font-size: 9px;">${timeStr}</span>
+                                <span class="fw-bold" style="color: ${color}; font-size: 10px;">${timeStr}</span>
                                 <div class="progress" style="height: 4px; background-color: rgba(0,0,0,0.05); border-radius: 2px;">
                                     <div class="progress-bar" role="progressbar" style="width: ${progress}%; background-color: ${color}; transition: width 0.5s ease;"></div>
                                 </div>
@@ -420,10 +420,13 @@
                     width: '90px',
                     render: (data, type) => {
                         if (type === 'display') {
-                            if (data === 'Em andamento') return `<span class="badge rounded-pill" style="font-size: 8px; background-color: #008891; color: #FFFFFF;">${data}</span>`;
-                            else if (data === 'Normalizado') return `<span class="badge rounded-pill" style="font-size: 8px; background-color: #7da233; color: #FFFFFF;">${data}</span>`;
-                            else if (data === 'Escalonado') return `<span class="badge rounded-pill bg-warning text-dark" style="font-size: 8px;">${data}</span>`;
-                            return `<span class="badge rounded-pill bg-success" style="font-size: 8px;">${data || 'N/D'}</span>`;
+                            if (data === 'Em andamento') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #008891; color: #FFFFFF;">${data}</span>`;
+                            else if (data === 'Normalizado') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #198754; color: #FFFFFF;">${data}</span>`;
+                            else if (data === 'Escalonado') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #ffc107; color: #000000;">${data}</span>`;
+                            else if (data === 'Pausado') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #6c757d; color: #FFFFFF;">${data}</span>`;
+                            else if (data.toLowerCase().includes('valida')) return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #6f42c1; color: #FFFFFF;">${data}</span>`;
+                            else if (data.toLowerCase().includes('terceiro')) return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #fd7e14; color: #FFFFFF;">${data}</span>`;
+                            return `<span class="badge rounded-pill bg-secondary" style="font-size: 9px;">${data || 'N/D'}</span>`;
                         }
                         return data || '';
                     }
@@ -438,9 +441,9 @@
                         if (type === 'display') {
                             let badgeClass = data ? 'bg-danger' : 'bg-info';
                             if (!data) {
-                                return `<span class="badge" style="font-size: 8px; background-color: #008891; color: white;">${text}</span>`;
+                                return `<span class="badge" style="font-size: 9px; background-color: #008891; color: white;">${text}</span>`;
                             }
-                            return `<span class="badge ${badgeClass}" style="font-size: 8px;">${text}</span>`;
+                            return `<span class="badge ${badgeClass}" style="font-size: 9px;">${text}</span>`;
                         }
                         return text;
                     }
@@ -450,7 +453,7 @@
                     className: 'text-center align-middle',
                     defaultContent: 'Livre',
                     width: '80px',
-                    render: (data) => `<span class="fw-bold text-muted" style="font-size: 9px;">${data}</span>`
+                    render: (data) => `<span class="fw-bold text-muted" style="font-size: 10px;">${data}</span>`
                 },
                 { 
                     data: null,

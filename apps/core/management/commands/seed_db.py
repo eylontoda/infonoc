@@ -11,7 +11,7 @@ from django.utils.dateparse import parse_datetime
 
 from apps.incidents.models import (
     Status, ImpactType, ImpactLevel, IncidentType, ClientType, UpdateIncident, 
-    RootCause, SLA, Incident, DetectionSource, Symptom
+    RootCause, SLA, Incident, DetectionSource, Symptom, UpdateTag
 )
 from apps.netbox.models import (
     Vendor, Role, SiteType, Region, 
@@ -32,6 +32,7 @@ class Command(BaseCommand):
             with transaction.atomic():
                 self.stdout.write("🌱 [1/4] Semeando dados estáticos...")
                 self._seed_static_data()
+                self._seed_update_tags()
 
             # BLOCO 2: Sincronização Externa (FORA de transação - Chamadas API)
             self.stdout.write("🔌 [2/4] Sincronizando com Netbox (API)...")
@@ -83,6 +84,25 @@ class Command(BaseCommand):
 
         client_type = ['Nenhum', 'Em Análise', 'Banda Larga', 'Dedicado', 'Banda Larga e Dedicado']
         for name in client_type: ClientType.objects.get_or_create(name=name)
+
+    def _seed_update_tags(self):
+        """Popula as novas tags de histórico N:N"""
+        self.stdout.write("  -> Criando Tags de Atualização...")
+        
+        tags = [
+            # slug, name, color, icon
+            ('is_new_comment', 'Nota Técnica', '#6c757d', 'bi-chat-left-text'),
+            ('impact', 'Alteração de Afetação', '#fd7e14', 'bi-lightning'),
+            ('expected_at', 'Nova Previsão', '#ffc107', 'bi-clock-history'),
+            ('impact_level', 'Nível de Impacto', '#dc3545', 'bi-bar-chart-steps'),
+            ('impact_type', 'Tipo de Impacto', '#d63384', 'bi-activity'),
+        ]
+
+        for slug, name, color, icon in tags:
+            UpdateTag.objects.get_or_create(
+                slug=slug,
+                defaults={'name': name, 'color': color, 'icon': icon}
+            )
 
         # LISTA INTEGRAL DE CAUSAS RAIZ (Sem reduções)
         root_causes = [
@@ -718,9 +738,11 @@ class Command(BaseCommand):
         from django.contrib.auth import get_user_model
         User = get_user_model()
         
-        # Caches
+        # Caches de Alta Performance
         user_map = {u.username: u for u in User.objects.all()}
         status_map = {s.name.lower(): s for s in Status.objects.all()}
+        tag_map = {t.slug: t for t in UpdateTag.objects.all()}
+        valid_incident_ids = set(Incident.objects.values_list('id', flat=True))
         
         last_incident_id = None
         current_impact_state = False
@@ -758,35 +780,27 @@ class Command(BaseCommand):
                 status_obj = list(status_map.values())[0]
 
             # ----------------------------------------------------
-            # [NOVO] Motor de Inferência de Flags Booleanas
-            # As verificações são independentes (sem elif)
+            # [NOVO] Motor de Inferência de Tags N:N (Simplificado)
             # ----------------------------------------------------
+            slugs = []
             
-            # Se tem qualquer texto além de espaços em branco, é um comentário
-            _is_new_comment = len(desc_str.strip()) > 0
-            
-            # Mudança de Status
-            _is_new_status = (status_ant != status_novo)
+            # Comentário manual
+            if len(desc_str.strip()) > 0:
+                slugs.append('is_new_comment')
             
             # Previsão
-            _is_new_expected_at = "nova previsão:" in desc_lower
+            if "nova previsão:" in desc_lower:
+                slugs.append('expected_at')
             
-            # Se mencionou afetação, inferimos que alterou níveis/tipos de impacto
-            _is_new_impact_type = ("afetação: iniciada" in desc_lower) or ("afetação: encerrada" in desc_lower)
-            _is_new_impact_level = _is_new_impact_type 
-            
-            # Abertura: Se não havia status anterior ou se está escrito "abertura"
-            _is_opening = (not status_ant) or ("informativo criado" in desc_lower)
-            
-            # Fechamento: Se o novo status indica encerramento
-            _is_closing = False
-            if status_novo and str(status_novo).lower() in ['normalizado', 'resolvido', 'encerrado']:
-                _is_closing = True
+            # Afetação
+            if ("afetação: iniciada" in desc_lower) or ("afetação: encerrada" in desc_lower):
+                slugs.append('impact')
+                slugs.append('impact_level')
+                slugs.append('impact_type')
             # ----------------------------------------------------
 
-            # Gravação no Django
-            if not Incident.objects.filter(id=incident_id).exists():
-                self.stdout.write(self.style.WARNING(f"    ⚠️  Incidente {incident_id} não existe. Update {update_id} ignorado."))
+            # Gravação no Django (Otimizada com Set)
+            if incident_id not in valid_incident_ids:
                 continue
 
             obj, created = UpdateIncident.objects.update_or_create(
@@ -798,26 +812,23 @@ class Command(BaseCommand):
                     # Conteúdo Base
                     'status': status_obj,
                     'is_impact_active': current_impact_state,
-                    'comment': desc_str or "Sem descrição.", # [CORRIGIDO] Alterado de technical_note para comment
+                    'comment': desc_str or "Sem descrição.",
                     'time_elapsed': time_elapsed_minutes,
-                    
-                    # [NOVO] Injeção das flags booleanas
-                    'is_new_comment': _is_new_comment,
-                    'is_new_status': _is_new_status,
-                    'is_new_expected_at': _is_new_expected_at,
-                    'is_new_impact_level': _is_new_impact_level,
-                    'is_new_impact_type': _is_new_impact_type,
-                    'is_opening': _is_opening,
-                    'is_closing': _is_closing,
                 }
             )
+
+            # Atribuição das Tags via Cache
+            if slugs:
+                tags_to_add = [tag_map[s] for s in slugs if s in tag_map]
+                if tags_to_add:
+                    obj.tags.set(tags_to_add)
 
             # Forçar as datas via SQL para ignorar o auto_now_add
             if created_date:
                 UpdateIncident.objects.filter(id=obj.id).update(created_at=created_date)
 
             count += 1
-            if count % 50 == 0:
+            if count % 100 == 0:
                 self.stdout.write(f"    ⏳ Processados {count} updates...")
 
         conn.close()

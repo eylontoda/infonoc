@@ -10,22 +10,37 @@
         <div class="d-flex justify-content-between align-items-center mb-1">
             <div>
                 <span class="fw-bold text-primary me-2" style="font-size: 10.5px;">{{ update.created_at|date:"d/m H:i" }}</span>
-                <span class="fw-bold text-muted" style="font-size: 10px;">{{ update.username }}</span>
+                <span class="fw-bold text-muted" style="font-size: 10px;">{{ update.created_by.username|default:"Sistema" }}</span>
             </div>
             <span class="text-muted" style="font-size: 8px;"><i class="bi bi-stopwatch"></i> +{{ update.time_elapsed }} min</span>
         </div>
 
-        <!-- Badges das Flags Booleanas Ativadas -->
+        <!-- Status Fixo e Tags M2M -->
         <div class="mb-1 d-flex flex-wrap gap-1">
-            {% if update.is_opening %}<span class="badge bg-primary-subtle text-primary border" style="font-size: 8px;">Abertura</span>{% endif %}
-            {% if update.is_closing %}<span class="badge bg-success-subtle text-success border" style="font-size: 8px;">Encerramento</span>{% endif %}
-            {% if update.is_new_status %}<span class="badge bg-info-subtle text-info border" style="font-size: 8px;">Status Atualizado</span>{% endif %}
-            {% if update.is_new_expected_at %}<span class="badge bg-warning-subtle text-warning border" style="font-size: 8px;">Nova Previsão</span>{% endif %}
-            {% if update.is_new_impact_type or update.is_new_impact_level %}<span class="badge bg-danger-subtle text-danger border" style="font-size: 8px;">Impacto Alterado</span>{% endif %}
-            <!-- Se não houver flags além de um comentário normal, mostramos uma tag genérica -->
-            {% if update.is_new_comment and not update.is_opening and not update.is_closing and not update.is_new_status and not update.is_new_expected_at and not update.is_new_impact_type %}
-                <span class="badge bg-secondary-subtle text-secondary border" style="font-size: 8px;">Nota Técnica</span>
-            {% endif %}
+            <!-- Badge de Status (1:1) -->
+            <span class="badge d-flex align-items-center gap-1 border" 
+                  style="font-size: 8px; 
+                         {% if 'normalizado' in update.status.name|lower %} background-color: #19875422 !important; color: #198754 !important; border-color: #19875455 !important;
+                         {% elif 'pausa' in update.status.name|lower %} background-color: #6c757d22 !important; color: #6c757d !important; border-color: #6c757d55 !important;
+                         {% elif 'escalonado' in update.status.name|lower %} background-color: #ffc10722 !important; color: #997404 !important; border-color: #ffc10755 !important;
+                         {% elif 'pendente' in update.status.name|lower or 'terceiro' in update.status.name|lower %} background-color: #fd7e1422 !important; color: #fd7e14 !important; border-color: #fd7e1455 !important;
+                         {% elif 'valida' in update.status.name|lower %} background-color: #6f42c122 !important; color: #6f42c1 !important; border-color: #6f42c155 !important;
+                         {% else %} background-color: #0dcaf022 !important; color: #0dcaf0 !important; border-color: #0dcaf055 !important;
+                         {% endif %}">
+                <i class="bi bi-info-circle"></i>
+                {{ update.status.name }}
+            </span>
+
+            <!-- Outras Tags M2M -->
+            {% for tag in update.tags.all %}
+                {% if tag.slug != 'status' %}
+                    <span class="badge d-flex align-items-center gap-1 border" 
+                          style="font-size: 8px; background-color: {{ tag.color }}22 !important; color: {{ tag.color }} !important; border-color: {{ tag.color }}55 !important;">
+                        {% if tag.icon %}<i class="bi {{ tag.icon }}"></i>{% endif %}
+                        {{ tag.name }}
+                    </span>
+                {% endif %}
+            {% endfor %}
         </div>
 
         <!-- Conteúdo / Nota Técnica -->

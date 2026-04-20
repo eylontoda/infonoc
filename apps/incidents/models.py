@@ -1,5 +1,6 @@
-from django.db import models
+from django.db import models, transaction
 from django.conf import settings
+from django.utils import timezone
 from apps.core.models import BaseModel
 from simple_history.models import HistoricalRecords
 
@@ -11,6 +12,19 @@ class Status(BaseModel): # [AJUSTE] Herança padronizada
     class Meta:
         verbose_name = "Status"
         verbose_name_plural = "Status"
+    def __str__(self): return self.name
+
+# ESTÁTICO VIA SEED
+class UpdateTag(BaseModel):
+    name = models.CharField(max_length=50, unique=True)
+    slug = models.SlugField(max_length=50, unique=True)
+    color = models.CharField(max_length=20, default="#6c757d")
+    icon = models.CharField(max_length=50, null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Tag de Atualização"
+        verbose_name_plural = "Tags de Atualização"
+
     def __str__(self): return self.name
 
 # ESTÁTICO VIA SEED
@@ -141,10 +155,18 @@ class UpdateIncident(BaseModel):
     incident = models.ForeignKey('Incident', on_delete=models.CASCADE, related_name='updates')
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, verbose_name="Autor")
 
-    #Conteúdo
+    # Conteúdo (Campos que podem mudar)
     status = models.ForeignKey('Status', on_delete=models.PROTECT)
     is_impact_active = models.BooleanField(verbose_name="Impacto Ativo?")
-    comment = models.TextField(verbose_name="Nota Técnica")
+    comment = models.TextField(verbose_name="Nota Técnica", null=True, blank=True)
+    
+    # [NOVOS] Campos para registrar o novo estado
+    impact_type = models.ForeignKey('ImpactType', on_delete=models.PROTECT, null=True, blank=True)
+    impact_level = models.ForeignKey('ImpactLevel', on_delete=models.PROTECT, null=True, blank=True)
+    expected_at = models.DateTimeField(null=True, blank=True)
+
+    tags = models.ManyToManyField(UpdateTag, related_name='updates', blank=True)
+
     time_elapsed = models.IntegerField(
         default=0, 
         null=True, 
@@ -152,14 +174,6 @@ class UpdateIncident(BaseModel):
         help_text="Minutos decorridos desde a última atualização (ou desde a abertura)", 
         verbose_name="Tempo decorrido (Minutos)"
     )
-
-    is_new_comment = models.BooleanField(default=False)
-    is_new_status = models.BooleanField(default=False)
-    is_new_expected_at = models.BooleanField(default=False)
-    is_new_impact_level = models.BooleanField(default=False)
-    is_new_impact_type = models.BooleanField(default=False)
-    is_opening = models.BooleanField(default=False)
-    is_closing = models.BooleanField(default=False)
 
     history = HistoricalRecords()
 
@@ -170,3 +184,78 @@ class UpdateIncident(BaseModel):
 
     def __str__(self):
         return f"Update {self.id} em {self.incident.mk_protocol}"
+
+    def save(self, *args, **kwargs):
+        """
+        Lógica Inteligente de Atualização (V2):
+        1. Calcula o tempo decorrido automaticamente.
+        2. Detecta o que mudou e prepara as tags.
+        3. Gera comentário de sistema se vazio.
+        4. Sincroniza Incidente pai.
+        """
+        is_new = self._state.adding
+        incident = self.incident
+        detected_slugs = []
+
+        if is_new:
+            now = timezone.now()
+            
+            # 1. Calcular tempo decorrido
+            last_update = incident.last_history_update_at or incident.occured_at or now
+            self.time_elapsed = max(0, int((now - last_update).total_seconds() / 60))
+
+            # 2. Detectar Mudanças (Impacto, Datas, etc)
+            if incident.is_impact_active != self.is_impact_active:
+                detected_slugs.append('impact')
+
+            if self.expected_at and incident.expected_at != self.expected_at:
+                detected_slugs.append('expected_at')
+
+            if self.impact_level_id and incident.impact_level_id != self.impact_level_id:
+                detected_slugs.append('impact_level')
+
+            if self.impact_type_id and incident.impact_type_id != self.impact_type_id:
+                detected_slugs.append('impact_type')
+
+            # 3. Comentário Automático de Sistema
+            if not self.comment and (detected_slugs or incident.status_id != self.status_id):
+                # Se mudou o status mas não gerou slugs, ainda assim geramos comentário
+                changes = list(detected_slugs)
+                if incident.status_id != self.status_id:
+                    changes.append('status')
+                
+                readable_changes = [s.replace('_', ' ').replace('-', ' ') for s in changes]
+                self.comment = f"[SISTEMA] Atualização automática de: {', '.join(readable_changes)}."
+            elif not self.comment:
+                self.comment = "[SISTEMA] Atualização de rotina."
+
+            # 4. Sincronizar com o Incidente (Transacional)
+            with transaction.atomic():
+                # Sincronização direta de campos
+                incident.status = self.status
+                incident.impact_level = self.impact_level or incident.impact_level
+                incident.impact_type = self.impact_type or incident.impact_type
+                incident.expected_at = self.expected_at or incident.expected_at
+                
+                incident.is_impact_active = self.is_impact_active
+                incident.last_history_update_at = now
+                
+                # Detecção de Encerramento para resolved_at
+                if self.status.name.lower() in ['normalizado', 'resolvido', 'encerrado'] and not incident.resolved_at:
+                    incident.resolved_at = now
+                
+                incident.save()
+                super().save(*args, **kwargs)
+
+                # 5. Atribuir Tags (M2M precisa do ID salvo)
+                if detected_slugs:
+                    tags = UpdateTag.objects.filter(slug__in=detected_slugs)
+                    self.tags.set(tags)
+                
+                # Tag de Comentário sempre que houver texto manual
+                if not self.comment.startswith('[SISTEMA]'):
+                    comment_tag = UpdateTag.objects.filter(slug='is_new_comment').first()
+                    if comment_tag: self.tags.add(comment_tag)
+
+        else:
+            super().save(*args, **kwargs)

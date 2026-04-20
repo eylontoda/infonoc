@@ -160,27 +160,8 @@ async def detalhe_incidente_ajax(request, protocolo):
             impacto_tipo_nome = incident.impact_type.name if incident.impact_type else "N/D"
             impacto_nivel_nome = incident.impact_level.name if incident.impact_level else "N/D"
 
-            # [NOVO] Histórico Otimizado
-            # Iteramos de forma "reversed" (Decrescente) para a apresentação no Offcanvas
-            safe_updates = []
-            for u in reversed(updates_list):
-                safe_updates.append({
-                    'created_at': u.created_at,
-                    'username': u.created_by.username if u.created_by else "Sistema",
-                    
-                    # Usa o novo campo 'comment', com fallback de segurança para 'technical_note'
-                    'comment': getattr(u, 'comment', getattr(u, 'technical_note', "")),
-                    'time_elapsed': getattr(u, 'time_elapsed', 0),
-                    
-                    # Flags booleanas para as Badges do UI
-                    'is_opening': getattr(u, 'is_opening', False),
-                    'is_closing': getattr(u, 'is_closing', False),
-                    'is_new_status': getattr(u, 'is_new_status', False),
-                    'is_new_expected_at': getattr(u, 'is_new_expected_at', False),
-                    'is_new_impact_type': getattr(u, 'is_new_impact_type', False),
-                    'is_new_impact_level': getattr(u, 'is_new_impact_level', False),
-                    'is_new_comment': getattr(u, 'is_new_comment', False),
-                })
+            # [NOVO] Histórico Otimizado com Tags M2M
+            historico_updates = incident.updates.select_related('created_by').prefetch_related('tags').order_by('-created_at')
 
             locais_list = [r.name for r in incident.affected_regions.all()]
             locais_afetados = ", ".join(locais_list) if locais_list else "Nenhum local mapeado"
@@ -203,7 +184,7 @@ async def detalhe_incidente_ajax(request, protocolo):
                 'tempo_afetacao_str': format_duration(impact_td),
                 'previsao_color': previsao_color,
                 'afetacao_color': afetacao_color,
-                'historico_updates': safe_updates
+                'historico_updates': historico_updates
             }
 
         context_data = await process_incident_data()
@@ -248,62 +229,42 @@ async def atualizar_incidente_ajax(request, protocolo):
                 rfo_text = request.POST.get('rfo', '').strip()
                 
                 is_impact_active = request.POST.get('is_impact_active') == 'True'
-                
-                # [AJUSTE] Modificado technical_note para comment de acordo com o modelo novo
                 comment_text = request.POST.get('technical_note', '').strip()
                 
                 new_status = Status.objects.filter(id=status_id).first()
+                new_impact_level = ImpactLevel.objects.filter(id=impact_level_id).first() if impact_level_id else None
+                new_impact_type = ImpactType.objects.filter(id=impact_type_id).first() if impact_type_id else None
                 
-                # Atualização de relações paramétricas
-                if impact_type_id: incident.impact_type_id = impact_type_id
-                if impact_level_id: incident.impact_level_id = impact_level_id
-                if client_type_id: incident.client_type_id = client_type_id
-                if sla_id: incident.sla_id = sla_id
-                
-                # Lógica de Escalonamento
-                if new_status and new_status.name.lower() == 'escalonado' and assigned_to_id:
-                    incident.assigned_to_id = assigned_to_id
-                
-                # Lógica de Normalização (Root Cause, Note, RFO)
+                # Campos Administrativos / Normalização Automática (Ainda na View por serem específicos de permissão/fluxo)
                 if new_status and new_status.name.lower() == 'normalizado':
                     if root_cause_id: incident.root_cause_id = root_cause_id
                     if note_text: incident.note = note_text
                     if rfo_text: incident.rfo = rfo_text
-                
-                now = timezone.now()
-                last_time = incident.last_history_update_at or incident.occured_at or now
-                elapsed_minutes = max(0, int((now - last_time).total_seconds() / 60))
-                
-                # 1. Cria o registo de histórico usando as novas flags Booleanas e 'comment'
+                    
+                    if user.has_perm('incidents.can_edit_admin_fields'):
+                        occ_at = request.POST.get('occured_at')
+                        res_at = request.POST.get('resolved_at')
+                        if occ_at: incident.occured_at = parse_datetime(occ_at)
+                        if res_at: incident.resolved_at = parse_datetime(res_at)
+
+                # Outras relações que não estão (ainda) no log de UpdateIncident
+                if client_type_id: incident.client_type_id = client_type_id
+                if sla_id: incident.sla_id = sla_id
+                if new_status and new_status.name.lower() == 'escalonado' and assigned_to_id:
+                    incident.assigned_to_id = assigned_to_id
+
+                # A Mágica acontece aqui: O save() do UpdateIncident cuida do resto!
                 UpdateIncident.objects.create(
                     incident=incident,
                     created_by=user,
                     status=new_status,
                     is_impact_active=is_impact_active,
                     comment=comment_text,
-                    time_elapsed=elapsed_minutes,
-                    
-                    # Detecção básica de tipo de update a partir do POST
-                    is_new_comment=bool(comment_text),
-                    is_new_status=(incident.status != new_status),
-                    is_closing=(new_status and new_status.name.lower() in ['normalizado', 'resolvido', 'encerrado'])
+                    impact_level=new_impact_level,
+                    impact_type=new_impact_type,
+                    # expected_at pode ser adicionado aqui se vier no POST
                 )
                 
-                # 2. Atualiza o estado principal do Incidente
-                incident.status = new_status
-                incident.is_impact_active = is_impact_active
-                incident.last_history_update_at = now
-                
-                # 3. Campos Administrativos / Normalização Automática
-                if user.has_perm('incidents.can_edit_admin_fields') and new_status and new_status.name.lower() == 'normalizado':
-                    occ_at = request.POST.get('occured_at')
-                    res_at = request.POST.get('resolved_at')
-                    if occ_at: incident.occured_at = parse_datetime(occ_at)
-                    if res_at: incident.resolved_at = parse_datetime(res_at)
-                elif new_status and new_status.name.lower() in ['normalizado', 'resolvido'] and not incident.resolved_at:
-                    incident.resolved_at = now
-                    
-                incident.save()
                 return True
                 
             await save_update()
@@ -326,7 +287,7 @@ async def atualizar_incidente_ajax(request, protocolo):
                 'status', 'incident_type', 'site', 'circuit', 'device',
                 'impact_type', 'impact_level', 'client_type', 'sla'
             ).prefetch_related(
-                'updates__created_by'
+                'updates__created_by', 'updates__tags'
             ).filter(mk_protocol=protocolo).first()
 
             if not incident:
@@ -354,24 +315,8 @@ async def atualizar_incidente_ajax(request, protocolo):
             else:
                 designador_nome = "N/D"
 
-            # Histórico ordenado
-            updates_list = sorted(list(incident.updates.all()), key=lambda u: u.created_at, reverse=True)
-            safe_updates = []
-            for u in updates_list:
-                safe_updates.append({
-                    'created_at': u.created_at,
-                    'username': u.created_by.username if u.created_by else "Sistema",
-                    'comment': getattr(u, 'comment', getattr(u, 'technical_note', "")),
-                    
-                    # Flags
-                    'is_opening': getattr(u, 'is_opening', False),
-                    'is_closing': getattr(u, 'is_closing', False),
-                    'is_new_status': getattr(u, 'is_new_status', False),
-                    'is_new_expected_at': getattr(u, 'is_new_expected_at', False),
-                    'is_new_impact_type': getattr(u, 'is_new_impact_type', False),
-                    'is_new_impact_level': getattr(u, 'is_new_impact_level', False),
-                    'is_new_comment': getattr(u, 'is_new_comment', False),
-                })
+            # Histórico ordenado com Tags M2M
+            historico_updates = incident.updates.select_related('created_by').prefetch_related('tags').order_by('-created_at')
 
             return {
                 'incident': incident,
@@ -383,7 +328,7 @@ async def atualizar_incidente_ajax(request, protocolo):
                 'lista_slas': lista_slas,
                 'lista_causas_raiz': lista_causas_raiz,
                 'lista_usuarios': lista_usuarios,
-                'historico_updates': safe_updates
+                'historico_updates': historico_updates
             }
 
         context_data = await get_update_form_data()
@@ -399,11 +344,6 @@ async def atualizar_incidente_ajax(request, protocolo):
 
 
 # --- [BOTÃO PENCIL] View para Edição Completa do Chamado ---
-async def editar_incidente_ajax(request, protocolo):
-    """
-    View responsável por carregar o Offcanvas de Edição Mestra (Pencil).
-    Permite alterar dados estruturais que não estão no fluxo de atualização rápida.
-    """
 async def editar_incidente_ajax(request, protocolo):
     """
     View responsável por carregar o Offcanvas de Edição Mestra (Pencil).
