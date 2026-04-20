@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: infonoc_db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=infonoc
+      - POSTGRES_USER=infonoc_user
+      - POSTGRES_PASSWORD=11223344
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U infonoc_user -d infonoc"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: infonoc_app
+    volumes:
+      - .:/app
+    ports:
+      # [AJUSTE] Retornado para a porta padrão 8000
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # [AJUSTE] Mantendo a conexão via rede interna do Docker
+      - DATABASE_URL=postgres://infonoc_user:11223344@db:5432/infonoc
+
+volumes:
+  postgres_data:

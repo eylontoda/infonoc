@@ -1,0 +1,280 @@
+<div class="animate-fade-in p-1">
+    <!-- Cabeçalho Modular -->
+    {% include 'users/partials/header_incidente.html' with header_title="Edição de Incidente" %}
+
+    <form id="formEdicaoMestra" 
+          hx-post="/incidents/editar-ajax/{{ incident.mk_protocol }}/" 
+          hx-target="#conteudoEditar"
+          hx-swap="innerHTML">
+        {% csrf_token %}
+
+        <!-- Tipo e Origem -->
+        <div class="row g-2 mb-1">
+            <div class="col-6">
+                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Tipo de Incidente</label>
+                <select class="form-select form-select-sm shadow-none" name="incident_type_id" id="selectTipoMestre" required style="font-size: 11px;">
+                    {% for tipo in lista_tipos %}
+                        <option value="{{ tipo.id }}" {% if incident.incident_type_id == tipo.id %}selected{% endif %}>{{ tipo.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Fonte de Detecção</label>
+                <select class="form-select form-select-sm shadow-none" name="detection_source_id" style="font-size: 11px;">
+                    <option value="">Selecione...</option>
+                    {% for fonte in lista_fontes %}
+                        <option value="{{ fonte.id }}" 
+                            {% if incident.detection_source_id == fonte.id or not incident.detection_source_id and 'Zabbix' in fonte.name %}selected{% endif %}>
+                            {{ fonte.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Designador Dinâmico Searchable -->
+        <div class="mb-1">
+            <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Designador (Localidade/Circuito)</label>
+            
+            <!-- Sites -->
+            <div id="containerSite" class="designador-field d-none">
+                <input type="text" class="form-control form-control-sm shadow-none mb-1" list="listSites" id="inputSite" placeholder="Pesquisar Site..." style="font-size: 11px;" value="{% if incident.site %}{{ incident.site.facility }} - {{ incident.site.name }}{% endif %}">
+                <input type="hidden" name="site_id" id="hiddenSiteId" value="{{ incident.site_id }}">
+                <datalist id="listSites">
+                    {% for site in lista_sites %}
+                        <option data-id="{{ site.id }}" value="{{ site.facility }} - {{ site.name }}"></option>
+                    {% endfor %}
+                </datalist>
+            </div>
+
+            <!-- Circuitos Backbone -->
+            <div id="containerCircuitoBackbone" class="designador-field d-none">
+                <input type="text" class="form-control form-control-sm shadow-none mb-1" list="listCircuitosBackbone" id="inputCircuitoBackbone" placeholder="Pesquisar Circuito Backbone..." style="font-size: 11px;" value="{% if incident.incident_type.name == 'Backbone' %}{{ incident.circuit.name }}{% endif %}">
+                <datalist id="listCircuitosBackbone">
+                    {% for circ in lista_circuitos_backbone %}
+                        <option data-id="{{ circ.id }}" value="{{ circ.name }}"></option>
+                    {% endfor %}
+                </datalist>
+            </div>
+
+            <!-- Circuitos Core -->
+            <div id="containerCircuitoCore" class="designador-field d-none">
+                <input type="text" class="form-control form-control-sm shadow-none mb-1" list="listCircuitosCore" id="inputCircuitoCore" placeholder="Pesquisar Circuito Core..." style="font-size: 11px;" value="{% if incident.incident_type.name == 'Core' %}{{ incident.circuit.name }}{% endif %}">
+                <datalist id="listCircuitosCore">
+                    {% for circ in lista_circuitos_core %}
+                        <option data-id="{{ circ.id }}" value="{{ circ.name }}"></option>
+                    {% endfor %}
+                </datalist>
+            </div>
+            
+            <!-- Campo oculto compartilhado para Circuitos -->
+            <input type="hidden" name="circuit_id" id="hiddenCircuitoId" value="{{ incident.circuit_id }}">
+
+            <!-- Devices -->
+            <div id="containerDevice" class="designador-field d-none">
+                <input type="text" class="form-control form-control-sm shadow-none mb-1" list="listDevices" id="inputDevice" placeholder="Pesquisar Device..." style="font-size: 11px;" value="{% if incident.device %}{{ incident.device.name }} ({{ incident.device.site.name }}){% endif %}">
+                <input type="hidden" name="device_id" id="hiddenDeviceId" value="{{ incident.device_id }}">
+                <datalist id="listDevices">
+                    {% for dev in lista_devices %}
+                        <option data-id="{{ dev.id }}" value="{{ dev.name }} ({{ dev.site.name }})"></option>
+                    {% endfor %}
+                </datalist>
+            </div>
+            <small class="text-muted d-block mt-1" style="font-size: 9px;"><i class="bi bi-info-circle me-1"></i> Digite para filtrar a lista</small>
+        </div>
+
+        <!-- Sintoma e SLA -->
+        <div class="row g-2 mb-1">
+            <div class="col-6">
+                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Sintoma Reportado</label>
+                <select class="form-select form-select-sm shadow-none" name="reported_symptom_id" style="font-size: 11px;">
+                    <option value="">Selecione...</option>
+                    {% for sint in lista_sintomas %}
+                        <option value="{{ sint.id }}" {% if incident.reported_symptom_id == sint.id %}selected{% endif %}>{{ sint.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">SLA Vigente</label>
+                <select class="form-select form-select-sm shadow-none" name="sla_id" style="font-size: 11px;">
+                    {% for sla in lista_slas %}
+                        <option value="{{ sla.id }}" {% if incident.sla_id == sla.id %}selected{% endif %}>{{ sla.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Datas -->
+        <div class="row g-2 mb-1">
+            <div class="col-6">
+                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Data de Ocorrência</label>
+                <input type="datetime-local" class="form-control form-control-sm shadow-none" name="occured_at" value="{{ incident.occured_at|date:'Y-m-d\TH:i' }}" style="font-size: 11px;">
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Previsão (ETR)</label>
+                <input type="datetime-local" class="form-control form-control-sm shadow-none" name="expected_at" value="{{ incident.expected_at|date:'Y-m-d\TH:i' }}" style="font-size: 11px;">
+            </div>
+        </div>
+
+        <!-- Descrição -->
+        <div class="mb-1">
+            <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Descrição do Evento</label>
+            <textarea class="form-control form-control-sm shadow-none" name="description" rows="3" style="font-size: 11px;">{{ incident.description }}</textarea>
+        </div>
+
+        <!-- Regiões Afetadas -->
+        <div class="mb-1">
+            <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Cidades/Regiões Afetadas</label>
+            
+            <!-- [NOVO] Container de Tags Selecionadas -->
+            <div id="selectedRegionsTags" class="d-flex flex-wrap gap-1 mb-1" style="min-height: 20px;">
+                <!-- Tags serão inseridas aqui via JS -->
+            </div>
+
+            <!-- [NOVO] Filtro de Texto -->
+            <div class="input-group input-group-sm mb-1">
+                <span class="input-group-text bg-transparent border-end-0" style="font-size: 10px;"><i class="bi bi-search"></i></span>
+                <input type="text" id="filterRegions" class="form-control form-control-sm border-start-0 ps-0 shadow-none" placeholder="Filtrar cidades..." style="font-size: 11px;">
+            </div>
+
+            <div class="border rounded p-2 bg-body-tertiary overflow-auto" id="containerRegionsList" style="max-height: 140px;">
+                {% for reg in lista_regioes %}
+                <div class="form-check region-item">
+                    <input class="form-check-input region-checkbox" type="checkbox" name="affected_regions" value="{{ reg.id }}" id="reg{{ reg.id }}" data-name="{{ reg.name }}"
+                           {% if reg in incident.affected_regions.all %}checked{% endif %}>
+                    <label class="form-check-label text-muted" for="reg{{ reg.id }}" style="font-size: 10px;">
+                        {{ reg.name }}
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Botão de Ação -->
+        <button type="submit" class="btn btn-warning w-100 fw-bold shadow-sm d-flex justify-content-center align-items-center gap-2" style="font-size: 12px; padding: 10px;">
+            <i class="bi bi-save2-fill"></i> Salvar Alterações Estruturais
+        </button>
+    </form>
+</div>
+
+<script>
+    (function() {
+        const selectTipo = document.getElementById('selectTipoMestre');
+        
+        // Função para sincronizar input (datalist) com o ID real (hidden)
+        function setupSync(inputId, listId, hiddenId) {
+            const input = document.getElementById(inputId);
+            const list = document.getElementById(listId);
+            const hidden = document.getElementById(hiddenId);
+
+            if (!input || !list || !hidden) return;
+
+            input.addEventListener('input', function() {
+                const val = this.value;
+                const options = list.childNodes;
+                let found = false;
+                for (let i = 0; i < options.length; i++) {
+                    if (options[i].value === val) {
+                        hidden.value = options[i].getAttribute('data-id');
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) hidden.value = ""; // Limpa se não bater exato
+            });
+        }
+
+        setupSync('inputSite', 'listSites', 'hiddenSiteId');
+        setupSync('inputCircuitoBackbone', 'listCircuitosBackbone', 'hiddenCircuitoId');
+        setupSync('inputCircuitoCore', 'listCircuitosCore', 'hiddenCircuitoId');
+        setupSync('inputDevice', 'listDevices', 'hiddenDeviceId');
+
+        function toggleDesignadores() {
+            if (!selectTipo) return;
+            const tipoNome = selectTipo.options[selectTipo.selectedIndex].text;
+            
+            // Oculta todos
+            document.querySelectorAll('.designador-field').forEach(el => el.classList.add('d-none'));
+            
+            // Mostra o relevante
+            if (tipoNome === 'Site') {
+                document.getElementById('containerSite').classList.remove('d-none');
+            } else if (tipoNome === 'Backbone') {
+                document.getElementById('containerCircuitoBackbone').classList.remove('d-none');
+            } else if (tipoNome === 'Core') {
+                document.getElementById('containerCircuitoCore').classList.remove('d-none');
+            } else if (tipoNome === 'R.A.' || tipoNome === 'Equipamento') {
+                document.getElementById('containerDevice').classList.remove('d-none');
+            }
+        }
+
+        if (selectTipo) {
+            selectTipo.addEventListener('change', toggleDesignadores);
+            toggleDesignadores();
+        }
+
+        // --- [NOVO] Lógica de Regiões Afetadas ---
+        const filterInput = document.getElementById('filterRegions');
+        const tagsContainer = document.getElementById('selectedRegionsTags');
+        const checkboxes = document.querySelectorAll('.region-checkbox');
+        const regionItems = document.querySelectorAll('.region-item');
+
+        function updateTags() {
+            tagsContainer.innerHTML = '';
+            checkboxes.forEach(cb => {
+                if (cb.checked) {
+                    const tag = document.createElement('span');
+                    tag.className = 'badge bg-primary d-flex align-items-center gap-1 py-1 px-2';
+                    tag.style.fontSize = '9px';
+                    tag.style.cursor = 'pointer';
+                    tag.style.borderRadius = '12px';
+                    tag.style.backgroundColor = '#60c4b0 !important'; // Cyan!
+                    tag.innerHTML = `${cb.dataset.name} <i class="bi bi-x-circle-fill"></i>`;
+                    tag.onclick = () => {
+                        cb.checked = false;
+                        updateTags();
+                    };
+                    tagsContainer.appendChild(tag);
+                }
+            });
+        }
+
+        if (filterInput) {
+            filterInput.addEventListener('input', function() {
+                const term = this.value.toLowerCase();
+                regionItems.forEach(item => {
+                    const label = item.querySelector('label').innerText.toLowerCase();
+                    if (label.includes(term)) {
+                        item.classList.remove('d-none');
+                    } else {
+                        item.classList.add('d-none');
+                    }
+                });
+            });
+        }
+
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', updateTags);
+        });
+
+        // Inicializar tags se já houver selecionados
+        updateTags();
+    })();
+</script>
+
+<style>
+    .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Ajustes para Tema Escuro */
+    [data-bs-theme="dark"] .bg-light { background-color: #162434 !important; border-color: #2d3d4d !important; }
+    [data-bs-theme="dark"] .bg-body-tertiary { background-color: #121e2d !important; }
+    [data-bs-theme="dark"] .text-dark { color: #e1e1e1 !important; }
+    [data-bs-theme="dark"] .form-control, 
+    [data-bs-theme="dark"] .form-select { 
+        background-color: #0b141e !important; 
+        border-color: #2d3d4d !important; 
+        color: #fff !important; 
+    }
+    [data-bs-theme="dark"] .form-control::placeholder { color: #6c757d; }
+</style>

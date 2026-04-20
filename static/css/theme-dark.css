@@ -1,0 +1,635 @@
+/* CSS específico para ajustar componentes no tema escuro */
+
+/* Ajustes para a barra de rolagem */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Ajuste para os badges de status */
+.badge.bg-light, .badge.bg-secondary {
+  color: #0f172a !important;
+}
+
+.badge.text-dark {
+  color: #0f172a !important;
+}
+
+/* Ajustes para alertas */
+.alert-primary {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.alert-success {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.alert-warning {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.alert-danger {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Ajustes para modais */
+.modal-content {
+  background-color: var(--card-bg) !important;
+  color: var(--text-color) !important;
+  border-color: var(--border-color) !important;
+}
+
+.modal-header, .modal-footer {
+  background-color: var(--card-bg) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Ajuste para SweetAlerts */
+.swal2-popup {
+  background-color: var(--card-bg) !important;
+  color: var(--text-color) !important;
+}
+
+.swal2-title, .swal2-content {
+  color: var(--text-color) !important;
+}
+
+.swal2-confirm, .swal2-cancel {
+  background-color: #3b82f6 !important;
+  color: white !important;
+}
+
+/* Ajustes para tabs */
+.nav-tabs {
+  border-color: var(--border-color) !important;
+}
+
+.nav-tabs .nav-link {
+  color: var(--text-muted) !important;
+}
+
+.nav-tabs .nav-link.active {
+  background-color: var(--dark-bg-accent) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-color) !important;
+}
+
+.nav-tabs .nav-link:hover {
+  border-color: #475569;
+  isolation: isolate;
+}
+
+/* Botões de outline */
+.btn-outline-primary {
+  color: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.btn-outline-primary:hover {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.btn-outline-success {
+  color: #10b981;
+  border-color: #10b981;
+}
+
+.btn-outline-success:hover {
+  background-color: #10b981;
+  color: white;
+}
+
+.btn-outline-danger {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.btn-outline-danger:hover {
+  background-color: #ef4444;
+  color: white;
+}
+
+.btn-outline-secondary {
+  color: var(--text-color) !important;
+  border-color: var(--border-color) !important;
+}
+
+.btn-outline-secondary:hover {
+  background-color: var(--sidebar-active) !important;
+  color: var(--text-color) !important;
+}
+
+.btn-light {
+  background-color: var(--dark-bg-accent) !important;
+  color: var(--dark-text) !important;
+  border-color: var(--dark-border) !important;
+}
+
+/* Tabelas */
+.table-striped tbody tr:nth-of-type(odd) {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.table-bordered {
+  border-color: #334155;
+}
+
+.table-bordered td, .table-bordered th {
+  border-color: #334155;
+}
+
+.table {
+  color: var(--text-color) !important;
+}
+
+.table th, .table td {
+  border-color: var(--border-color) !important;
+}
+
+.table-dark {
+  background-color: var(--dark-bg-accent) !important;
+  color: var(--dark-text) !important;
+}
+
+/* Status cards específicos */
+.status-card {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #334155 !important;
+}
+
+/* Ajustes para etiquetas e campos de entrada */
+label {
+  color: #e2e8f0;
+}
+
+.input-group-text {
+  background-color: var(--input-bg) !important;
+  color: var(--text-color) !important;
+  border-color: var(--input-border) !important;
+}
+
+.form-control, .form-select {
+  background-color: var(--input-bg) !important;
+  color: var(--text-color) !important;
+  border-color: var(--input-border) !important;
+}
+
+.form-control:focus, .form-select:focus {
+  background-color: var(--input-bg) !important;
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25) !important;
+}
+
+input[type="date"], input[type="datetime-local"] {
+  background-color: var(--input-bg) !important;
+  color: var(--text-color) !important;
+  border-color: var(--input-border) !important;
+}
+
+select.form-select option {
+  background-color: var(--dark-bg-lighter);
+  color: var(--text-color);
+}
+
+/* Ajustes para tooltips */
+.tooltip .tooltip-inner {
+  background-color: #334155;
+  color: #e2e8f0;
+}
+
+.bs-tooltip-auto[x-placement^=top] .arrow::before, 
+.bs-tooltip-top .arrow::before {
+  border-top-color: #334155;
+}
+
+/* Tema escuro específico para informativos - 
+   Estilos complementares que são aplicados quando o tema escuro está ativo */
+
+:root {
+    /* Ajuste fino de cores para o tema escuro */
+    --dark-bg-deep: #0f172a;
+    --dark-bg-lighter: #1e293b;
+    --dark-bg-accent: #2d3748;
+    --dark-text: #e2e8f0;
+    --dark-text-muted: #94a3b8;
+    --dark-border: #334155;
+    --dark-primary: #3b82f6;
+    --dark-secondary: #2563eb;
+    --dark-success: #10b981;
+    --dark-warning: #f59e0b;
+    --dark-danger: #ef4444;
+    --dark-info: #0ea5e9;
+}
+
+/* Corrigir fundos claros em itens específicos */
+body, .main-content, .card, .modal-content, 
+.dropdown-menu, .list-group, .table, .form-control, 
+.form-select, .input-group-text, .btn-light, .bg-light {
+    transition: all 0.3s ease;
+}
+
+/* Ajustes para cards, tabelas e listas */
+.card {
+    background-color: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.3) !important;
+}
+
+.card-header, .card-footer {
+    background-color: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Ajuste para badges e status */
+.badge.sem-impacto {
+    background-color: var(--bg-info) !important;
+}
+
+.badge.com-afetacao {
+    background-color: var(--bg-danger) !important;
+}
+
+.badge.sem-afetacao {
+    background-color: var(--bg-success) !important;
+}
+
+.badge.total {
+    background-color: var(--bg-danger) !important;
+}
+
+.badge.parcial {
+    background-color: var(--bg-warning) !important;
+}
+
+.badge.intermitente {
+    background-color: var(--bg-info) !important;
+}
+
+/* Estados de informativo */
+.em-andamento {
+    background-color: var(--bg-info) !important;
+    color: white !important;
+}
+
+.resolvido {
+    background-color: var(--bg-success) !important;
+    color: white !important;
+}
+
+/* Componentes específicos de relatórios */
+.metrics-card {
+    background-color: var(--card-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.metrics-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Cores específicas para métricas */
+.metrics-blue {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+    color: white !important;
+}
+
+.metrics-green {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    color: white !important;
+}
+
+.metrics-red {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+    color: white !important;
+}
+
+.metrics-orange {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+    color: white !important;
+}
+
+/* Gráficos */
+.chart-container {
+    background-color: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Estilização para cada tipo de status do informativo */
+.status-em-andamento {
+    background-color: var(--bg-info) !important;
+    color: white !important;
+}
+
+.status-resolvido {
+    background-color: var(--bg-success) !important;
+    color: white !important;
+}
+
+.status-cancelado {
+    background-color: var(--dark-bg-accent) !important;
+    color: var(--dark-text) !important;
+}
+
+/* Estilização para impactos */
+.impacto-total {
+    color: white !important;
+    background-color: var(--bg-danger) !important;
+}
+
+.impacto-parcial {
+    color: white !important;
+    background-color: var(--bg-warning) !important;
+}
+
+.impacto-sem {
+    color: white !important;
+    background-color: var(--bg-success) !important;
+}
+
+/* Ajustes para notificações */
+.notification-item {
+    background-color: var(--dark-bg-lighter) !important;
+    border-color: var(--dark-border) !important;
+}
+
+.notification-item:hover {
+    background-color: var(--dark-bg-accent) !important;
+}
+
+/* Tema escuro específico para informativos */
+
+/* Reset para elementos com fundo branco persistente */
+body[data-bs-theme="dark"],
+html[data-theme="dark"] body,
+html[data-theme="dark"] .modal-content,
+html[data-theme="dark"] .dropdown-menu,
+html[data-theme="dark"] .list-group-item,
+html[data-theme="dark"] .toast,
+html[data-theme="dark"] .popover,
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .form-control,
+html[data-theme="dark"] .form-select {
+    color-scheme: dark;
+}
+
+/* Ajustes da barra de rolagem */
+html[data-theme="dark"] ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: #1e293b;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
+
+/* Corrigir fundos brancos em elementos específicos */
+html[data-theme="dark"] .modal,
+html[data-theme="dark"] .modal-content,
+html[data-theme="dark"] .modal-header,
+html[data-theme="dark"] .modal-body,
+html[data-theme="dark"] .modal-footer,
+html[data-theme="dark"] .dropdown-menu,
+html[data-theme="dark"] .list-group,
+html[data-theme="dark"] .list-group-item,
+html[data-theme="dark"] .toast,
+html[data-theme="dark"] .toast-header,
+html[data-theme="dark"] .toast-body,
+html[data-theme="dark"] .popover,
+html[data-theme="dark"] .tooltip,
+html[data-theme="dark"] .tooltip-inner,
+html[data-theme="dark"] .bs-tooltip-auto,
+html[data-theme="dark"] .bs-popover-auto {
+    background-color: var(--card-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Corrigir botões e inputs */
+html[data-theme="dark"] .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+html[data-theme="dark"] .form-control,
+html[data-theme="dark"] .form-select,
+html[data-theme="dark"] .form-check-input,
+html[data-theme="dark"] .input-group-text,
+html[data-theme="dark"] .form-control-plaintext {
+    background-color: var(--input-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--input-border) !important;
+}
+
+html[data-theme="dark"] .form-control:focus,
+html[data-theme="dark"] .form-select:focus {
+    background-color: var(--input-bg) !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25) !important;
+}
+
+html[data-theme="dark"] .form-control::placeholder {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+/* Inputs especiais */
+html[data-theme="dark"] input[type="date"],
+html[data-theme="dark"] input[type="datetime-local"],
+html[data-theme="dark"] input[type="month"],
+html[data-theme="dark"] input[type="time"],
+html[data-theme="dark"] input[type="week"] {
+    background-color: var(--input-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--input-border) !important;
+    color-scheme: dark !important;
+}
+
+/* Botões de estilo light/secondary que podem ficar brancos */
+html[data-theme="dark"] .btn-light,
+html[data-theme="dark"] .btn-outline-light,
+html[data-theme="dark"] .btn-secondary,
+html[data-theme="dark"] .btn-outline-secondary {
+    background-color: var(--card-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+html[data-theme="dark"] .btn-light:hover,
+html[data-theme="dark"] .btn-outline-light:hover,
+html[data-theme="dark"] .btn-secondary:hover,
+html[data-theme="dark"] .btn-outline-secondary:hover {
+    background-color: var(--sidebar-active) !important;
+}
+
+/* Campos de fecha e dropdowns */
+html[data-theme="dark"] .dropdown-item:hover,
+html[data-theme="dark"] .dropdown-item:focus {
+    background-color: var(--sidebar-active) !important;
+    color: var(--text-color) !important;
+}
+
+/* Lista de opciones del select */
+html[data-theme="dark"] select.form-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23adb5bd' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e") !important;
+}
+
+html[data-theme="dark"] select.form-select option {
+    background-color: var(--input-bg) !important;
+    color: var(--text-color) !important;
+}
+
+/* Tabelas */
+html[data-theme="dark"] .table {
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+html[data-theme="dark"] .table thead th {
+    background-color: var(--table-header-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+html[data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+html[data-theme="dark"] .table-hover > tbody > tr:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Cards e componentes */
+html[data-theme="dark"] .card {
+    background-color: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.3) !important;
+}
+
+html[data-theme="dark"] .card-header,
+html[data-theme="dark"] .card-footer {
+    background-color: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Badges */
+html[data-theme="dark"] .badge.bg-light,
+html[data-theme="dark"] .badge.bg-secondary {
+    background-color: var(--input-bg) !important;
+    color: var(--text-color) !important;
+}
+
+/* SweetAlert2 */
+html[data-theme="dark"] .swal2-popup {
+    background-color: var(--card-bg) !important;
+    color: var(--text-color) !important;
+}
+
+html[data-theme="dark"] .swal2-title,
+html[data-theme="dark"] .swal2-html-container,
+html[data-theme="dark"] .swal2-content {
+    color: var(--text-color) !important;
+}
+
+html[data-theme="dark"] .swal2-input,
+html[data-theme="dark"] .swal2-textarea,
+html[data-theme="dark"] .swal2-select {
+    background-color: var(--input-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--input-border) !important;
+}
+
+/* Datepicker e outros componentes de terceiros */
+html[data-theme="dark"] .datepicker-dropdown,
+html[data-theme="dark"] .ui-datepicker,
+html[data-theme="dark"] .bootstrap-datetimepicker-widget {
+    background-color: var(--card-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Bootstrap Select */
+html[data-theme="dark"] .bootstrap-select .dropdown-toggle,
+html[data-theme="dark"] .bootstrap-select .dropdown-menu {
+    background-color: var(--input-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--input-border) !important;
+}
+
+/* Corrigir informático específico */
+html[data-theme="dark"] .informativo-card {
+    background-color: var(--card-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+html[data-theme="dark"] .dashboard-stat {
+    background-color: var(--card-bg) !important;
+    color: var(--text-color) !important;
+}
+
+/* Corrigir alertas */
+html[data-theme="dark"] .alert {
+    border-color: var(--border-color) !important;
+}
+
+html[data-theme="dark"] .alert-light {
+    background-color: var(--card-bg) !important;
+    color: var(--text-color) !important;
+}
+
+/* Correção de elementos com !important que sobrescrevem o tema */
+html[data-theme="dark"] [style*="background-color: white"],
+html[data-theme="dark"] [style*="background-color: #fff"],
+html[data-theme="dark"] [style*="background-color: #ffffff"],
+html[data-theme="dark"] [style*="background: white"],
+html[data-theme="dark"] [style*="background: #fff"],
+html[data-theme="dark"] [style*="background: #ffffff"] {
+    background-color: var(--card-bg) !important;
+    background: var(--card-bg) !important;
+}
+
+html[data-theme="dark"] [style*="color: black"],
+html[data-theme="dark"] [style*="color: #000"],
+html[data-theme="dark"] [style*="color: #000000"] {
+    color: var(--text-color) !important;
+}

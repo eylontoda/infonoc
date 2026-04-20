@@ -1,0 +1,64 @@
+<!-- O loop abaixo DEVE ser ordenado de forma decrescente (-created_at) no views.py -->
+<div class="timeline-container ps-3 border-start border-2 border-light position-relative" style="max-height: 400px; overflow-y: auto;">
+    
+    {% for update in historico_updates %}
+    <div class="mb-3 position-relative pe-2 hover-reveal">
+        <!-- Ponto da Timeline -->
+        <div class="position-absolute translate-middle-x rounded-circle" style="width: 8px; height: 8px; left: -19px; top: 5px; background-color: #008891;"></div>
+        
+        <!-- Cabeçalho da Atualização -->
+        <div class="d-flex justify-content-between align-items-center mb-1">
+            <div>
+                <span class="fw-bold text-primary me-2" style="font-size: 10.5px;">{{ update.created_at|date:"d/m H:i" }}</span>
+                <span class="fw-bold text-muted" style="font-size: 10px;">{{ update.username }}</span>
+            </div>
+            <span class="text-muted" style="font-size: 8px;"><i class="bi bi-stopwatch"></i> +{{ update.time_elapsed }} min</span>
+        </div>
+
+        <!-- Badges das Flags Booleanas Ativadas -->
+        <div class="mb-1 d-flex flex-wrap gap-1">
+            {% if update.is_opening %}<span class="badge bg-primary-subtle text-primary border" style="font-size: 8px;">Abertura</span>{% endif %}
+            {% if update.is_closing %}<span class="badge bg-success-subtle text-success border" style="font-size: 8px;">Encerramento</span>{% endif %}
+            {% if update.is_new_status %}<span class="badge bg-info-subtle text-info border" style="font-size: 8px;">Status Atualizado</span>{% endif %}
+            {% if update.is_new_expected_at %}<span class="badge bg-warning-subtle text-warning border" style="font-size: 8px;">Nova Previsão</span>{% endif %}
+            {% if update.is_new_impact_type or update.is_new_impact_level %}<span class="badge bg-danger-subtle text-danger border" style="font-size: 8px;">Impacto Alterado</span>{% endif %}
+            <!-- Se não houver flags além de um comentário normal, mostramos uma tag genérica -->
+            {% if update.is_new_comment and not update.is_opening and not update.is_closing and not update.is_new_status and not update.is_new_expected_at and not update.is_new_impact_type %}
+                <span class="badge bg-secondary-subtle text-secondary border" style="font-size: 8px;">Nota Técnica</span>
+            {% endif %}
+        </div>
+
+        <!-- Conteúdo / Nota Técnica -->
+        <div class="p-2 border rounded shadow-sm bg-white font-monospace position-relative" style="color: #444; font-size: 10.5px; line-height: 1.3;">
+            {{ update.comment }}
+            
+            {% if perms.incidents.can_delete_update %}
+            <button type="button" class="btn btn-sm btn-outline-danger position-absolute top-0 end-0 m-1 py-0 px-1 delete-btn opacity-0 transition-all" title="Excluir" style="font-size: 9px;">
+                <i class="bi bi-trash"></i>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="text-center py-3 text-muted">Nenhum histórico disponível.</div>
+    {% endfor %}
+
+</div>
+
+<style>
+    /* Scrollbar minimalista para o histórico */
+    .timeline-container::-webkit-scrollbar { width: 4px; }
+    .timeline-container::-webkit-scrollbar-track { background: transparent; }
+    .timeline-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+    /* Fix para dark mode da fonte no histórico */
+    [data-bs-theme="dark"] .timeline-container .font-monospace { color: #e1e1e1 !important; }
+
+    /* Adaptação de Badges Súteis no Dark Mode para a Timeline */
+    [data-bs-theme="dark"] .timeline-container .bg-primary-subtle { background-color: rgba(13, 110, 253, 0.2) !important; border-color: rgba(13, 110, 253, 0.5) !important; color: #6ea8fe !important; }
+    [data-bs-theme="dark"] .timeline-container .bg-success-subtle { background-color: rgba(25, 135, 84, 0.2) !important; border-color: rgba(25, 135, 84, 0.5) !important; color: #75b798 !important; }
+    [data-bs-theme="dark"] .timeline-container .bg-info-subtle { background-color: rgba(13, 202, 240, 0.2) !important; border-color: rgba(13, 202, 240, 0.5) !important; color: #6edff6 !important; }
+    [data-bs-theme="dark"] .timeline-container .bg-warning-subtle { background-color: rgba(255, 193, 7, 0.2) !important; border-color: rgba(255, 193, 7, 0.5) !important; color: #ffda6a !important; }
+    [data-bs-theme="dark"] .timeline-container .bg-danger-subtle { background-color: rgba(220, 53, 69, 0.2) !important; border-color: rgba(220, 53, 69, 0.5) !important; color: #ea868f !important; }
+    [data-bs-theme="dark"] .timeline-container .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.2) !important; border-color: rgba(108, 117, 125, 0.5) !important; color: #a3a8ad !important; }
+</style>

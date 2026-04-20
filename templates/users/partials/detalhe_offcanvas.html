@@ -1,0 +1,179 @@
+<div class="incident-offcanvas-content animate-fade-in" style="font-size: 11px;">
+
+    <!-- Cabeçalho Modular -->
+    {% include 'users/partials/header_incidente.html' with header_title="Detalhes do Incidente" %}
+
+    <!-- Grade de Informações -->
+    <div class="row g-2 mb-1">
+        <!-- Coluna: Origem e Local -->
+        <div class="col-6">
+            <div class="p-2 border rounded h-100 shadow-xs bg-body-tertiary">
+                <h6 class="fw-bold mb-2 border-bottom pb-1 text-primary" style="font-size: 10px;"><i
+                        class="bi bi-geo-alt me-1"></i> Origem e Características</h6>
+
+                <p class="mb-1"><strong>Tipo:</strong> {{ tipo_nome }}</p>
+                <p class="mb-1"><strong>Sintoma:</strong> {{ sintoma_nome }}</p>
+                <p class="mb-1"><strong>Circuito:</strong> {{ circuito_nome }}</p>
+                <p class="mb-1"><strong>Fornecedor:</strong> {{ fornecedor_nome|default:"N/D" }}</p>
+
+                <hr class="my-1">
+                <!-- [NOVO] Campos de Impacto Detalhado -->
+                <p class="mb-1"><strong>Tipo de Impacto:</strong> {{ impacto_tipo_nome }}</p>
+                <p class="mb-1"><strong>Nível de Impacto:</strong> {{ impacto_nivel_nome }}</p>
+
+                <p class="mb-0 mt-1" style="line-height: 1.2;"><strong>Locais Afetados:</strong> <br>
+                    <span class="text-muted">{{ locais_afetados }}</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Coluna: Cronologia -->
+        <div class="col-6">
+            <div class="p-2 border rounded h-100 shadow-xs bg-body-tertiary">
+                <h6 class="fw-bold mb-2 border-bottom pb-1 text-primary" style="font-size: 10px;"><i
+                        class="bi bi-clock me-1"></i> Cronologia e SLA</h6>
+
+                <p class="mb-1"><strong>Início:</strong> {{ incident.occured_at|date:"d/m/Y H:i" }}</p>
+
+                <p class="mb-1"><strong>Previsão:</strong>
+                    <span class="fw-bold" style="color: {{ previsao_color|default:'#60c4b0' }};">
+                        {{ incident.expected_at|date:"d/m/Y H:i"|default:"N/D" }}
+                    </span>
+                </p>
+
+                <p class="mb-1"><strong>SLA Inicial:</strong> {{ sla_nome }}</p>
+                <p class="mb-1"><strong>Tempo Total:</strong> {{ tempo_total_str }}</p>
+
+                <p class="mb-0"><strong>Tempo de Afetação:</strong>
+                    <span class="fw-bold" style="color: {{ afetacao_color|default:'#7da233' }};">
+                        {{ tempo_afetacao_str }}
+                    </span>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Descrição Inicial -->
+    <div class="mb-1">
+        <h6 class="fw-bold mb-2" style="font-size: 10px;"><i class="bi bi-card-text me-1"></i> Descrição Original</h6>
+        <div class="p-2 bg-light border rounded font-monospace"
+            style="white-space: pre-wrap; line-height: 1.4; color: var(--text-main); font-size: 10.5px;">
+            {{ incident.description|default:"Sem descrição." }}
+        </div>
+    </div>
+
+    <hr>
+
+    <!-- Histórico de Atualizações (Timeline) -->
+    <div class="history-timeline">
+        <h6 class="fw-bold mb-1" style="font-size: 10px;"><i class="bi bi-journal-text me-1"></i> Histórico de
+            Atividades</h6>
+
+        {% include 'users/partials/history_timeline.html' %}
+    </div>
+</div>
+
+<style>
+    /* Ajustes Gerais */
+    .incident-offcanvas-content p {
+        margin-bottom: 0.2rem;
+    }
+
+    .font-monospace {
+        font-family: 'Consolas', 'Monaco', monospace !important;
+    }
+
+    /* Scrollbar minimalista para o histórico */
+    .timeline-container::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .timeline-container::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .timeline-container::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+
+    /* Animação */
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(5px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Adaptação Dark Mode */
+    [data-bs-theme="dark"] .bg-white {
+        background-color: #1b2a3a !important;
+        color: #e1e1e1 !important;
+        border-color: #2d3d4d !important;
+    }
+
+    [data-bs-theme="dark"] .bg-light {
+        background-color: #162434 !important;
+        border-color: #2d3d4d !important;
+    }
+
+    [data-bs-theme="dark"] .bg-body-tertiary {
+        background-color: #121e2d !important;
+        border-color: #2d3d4d !important;
+    }
+
+    [data-bs-theme="dark"] .text-primary {
+        color: #60c4b0 !important;
+    }
+
+    [data-bs-theme="dark"] .text-dark,
+    [data-bs-theme="dark"] .font-monospace {
+        color: #e1e1e1 !important;
+    }
+
+    /* Adaptação de Badges Súteis no Dark Mode */
+    [data-bs-theme="dark"] .bg-primary-subtle {
+        background-color: rgba(13, 110, 253, 0.2) !important;
+        border-color: rgba(13, 110, 253, 0.5) !important;
+        color: #6ea8fe !important;
+    }
+
+    [data-bs-theme="dark"] .bg-success-subtle {
+        background-color: rgba(25, 135, 84, 0.2) !important;
+        border-color: rgba(25, 135, 84, 0.5) !important;
+        color: #75b798 !important;
+    }
+
+    [data-bs-theme="dark"] .bg-info-subtle {
+        background-color: rgba(13, 202, 240, 0.2) !important;
+        border-color: rgba(13, 202, 240, 0.5) !important;
+        color: #6edff6 !important;
+    }
+
+    [data-bs-theme="dark"] .bg-warning-subtle {
+        background-color: rgba(255, 193, 7, 0.2) !important;
+        border-color: rgba(255, 193, 7, 0.5) !important;
+        color: #ffda6a !important;
+    }
+
+    [data-bs-theme="dark"] .bg-danger-subtle {
+        background-color: rgba(220, 53, 69, 0.2) !important;
+        border-color: rgba(220, 53, 69, 0.5) !important;
+        color: #ea868f !important;
+    }
+
+    [data-bs-theme="dark"] .bg-secondary-subtle {
+        background-color: rgba(108, 117, 125, 0.2) !important;
+        border-color: rgba(108, 117, 125, 0.5) !important;
+        color: #a3a8ad !important;
+    }
+</style>

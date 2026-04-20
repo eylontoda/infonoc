@@ -1,0 +1,140 @@
+<!-- Barra Superior: Ações (Esquerda) e Título (Centro) -->
+<div class="d-flex align-items-center mb-2 position-relative" style="min-height: 28px;">
+    <!-- Botões de Ação no Canto Superior Esquerdo -->
+    <div class="d-flex gap-1 position-absolute start-0">
+        <!-- Visualizar -->
+        <button class="btn btn-header-action btn-action-view" 
+                hx-get="/incidents/detalhe-ajax/{{ incident.mk_protocol }}/" hx-target="#conteudoDetalhes" data-bs-toggle="offcanvas" data-bs-target="#offcanvasDetalhes"
+                title="Ver Detalhes">
+            <i class="bi bi-eye-fill"></i>
+        </button>
+        <!-- Atualizar -->
+        <button class="btn btn-header-action btn-action-add" 
+                hx-get="/incidents/atualizar-ajax/{{ incident.mk_protocol }}/" hx-target="#conteudoAtualizacao" data-bs-toggle="offcanvas" data-bs-target="#offcanvasAtualizacao"
+                title="Atualizar">
+            <i class="bi bi-plus-square-fill"></i>
+        </button>
+        <!-- Resgatar -->
+        <button class="btn btn-header-action btn-action-assign" 
+                onclick="informativoManager.assumirResponsabilidade('{{ incident.mk_protocol }}')" 
+                title="Resgatar">
+            <i class="bi bi-person-check-fill"></i>
+        </button>
+        <!-- Editar -->
+        <button class="btn btn-header-action btn-action-edit" 
+                hx-get="/incidents/editar-ajax/{{ incident.mk_protocol }}/" hx-target="#conteudoEditar" data-bs-toggle="offcanvas" data-bs-target="#offcanvasEditar"
+                title="Editar">
+            <i class="bi bi-pencil-fill"></i>
+        </button>
+        <!-- Excluir -->
+        <button class="btn btn-header-action btn-action-delete" 
+                onclick="informativoManager.excluirChamado('{{ incident.mk_protocol }}')" 
+                title="Excluir">
+            <i class="bi bi-trash-fill"></i>
+        </button>
+    </div>
+
+    <!-- Título Centralizado -->
+    <div class="w-100 text-center px-5">
+        <h6 class="fw-bold text-dark mb-0" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
+            {{ header_title|default:"Detalhes do Incidente" }}
+        </h6>
+    </div>
+</div>
+
+<!-- Cabeçalho Quádruplo: Status, Protocolo, Afetação e Resgate -->
+<div class="row g-1 mb-3">
+    <!-- Status -->
+    <div class="col-3">
+        <div class="p-2 rounded bg-body-tertiary border text-center d-flex flex-column justify-content-between h-100 shadow-xs transition-all">
+            <span class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size: 9px; letter-spacing: 0.3px;">Status</span>
+            <div class="d-flex align-items-center justify-content-center flex-grow-1">
+                <span class="badge w-100 py-1" 
+                    style="background-color: {% if incident.status.name == 'Em andamento' %}#008891{% elif incident.status.name == 'Normalizado' %}#7da233{% elif incident.status.name == 'Escalonado' %}#ffc107{% else %}#60c4b0{% endif %}; 
+                           color: {% if incident.status.name == 'Escalonado' %}#000{% else %}#fff{% endif %}; 
+                           font-size: 10px; border-radius: 4px; line-height: 1.2;">
+                    {{ incident.status.name }}
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Protocolo -->
+    <div class="col-3">
+        <div class="p-2 rounded bg-body-tertiary border text-center d-flex flex-column justify-content-between h-100 shadow-xs transition-all">
+            <span class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size: 9px; letter-spacing: 0.3px;">Protocolo</span>
+            <div class="d-flex align-items-center justify-content-center flex-grow-1">
+                <span class="fw-bold text-dark d-block w-100 py-1 border rounded bg-white-subtle" style="font-size: 10px; line-height: 1.2; border-color: rgba(0,0,0,0.1) !important; border-radius: 4px !important;">
+                    {{ incident.mk_protocol }}
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Afetação -->
+    <div class="col-3">
+        <div class="p-2 rounded bg-body-tertiary border text-center d-flex flex-column justify-content-between h-100 shadow-xs transition-all">
+            <span class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size: 9px; letter-spacing: 0.3px;">Afetação</span>
+            <div class="d-flex align-items-center justify-content-center flex-grow-1">
+                <span class="badge w-100 py-1" style="background-color: {% if incident.is_impact_active %}#dc3545{% else %}#008891{% endif %}; color: white; font-size: 10px; border-radius: 4px; line-height: 1.2;">
+                    {% if incident.is_impact_active %}Sim{% else %}Não{% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resgate -->
+    <div class="col-3">
+        <div class="p-2 rounded bg-body-tertiary border text-center d-flex flex-column justify-content-between h-100 shadow-xs transition-all">
+            <span class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size: 9px; letter-spacing: 0.3px;">Resgate</span>
+            <div class="d-flex align-items-center justify-content-center flex-grow-1 overflow-hidden">
+                <span class="fw-bold text-primary d-block w-100 py-1 border rounded bg-white-subtle text-truncate px-1" style="font-size: 10px; line-height: 1.2; border-color: rgba(96, 196, 176, 0.3) !important; border-radius: 4px !important;">
+                    <i class="bi bi-person-fill me-1" style="font-size: 9px;"></i>{{ incident.assigned_to.username|default:"Livre" }}
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .shadow-xs { box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .transition-all { transition: all 0.2s ease; }
+    
+    /* Botões de Ação no Header */
+    .btn-header-action {
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        border-radius: 4px;
+        color: white;
+        transition: transform 0.1s;
+    }
+    .btn-header-action:hover { transform: scale(1.1); color: white; filter: brightness(0.9); }
+    .btn-header-action i { line-height: 1; }
+
+    .btn-action-view { background-color: #0d6efd; }
+    .btn-action-add { background-color: #475569; }
+    .btn-action-assign { background-color: #198754; }
+    .btn-action-edit { background-color: #ffc107; color: #000 !important; }
+    .btn-action-delete { background-color: #dc3545; }
+
+    [data-bs-theme="dark"] .bg-body-tertiary { background-color: #121e2d !important; }
+    [data-bs-theme="dark"] .bg-white-subtle { background-color: rgba(255,255,255,0.05) !important; }
+    [data-bs-theme="dark"] .text-dark { color: #e1e1e1 !important; }
+    [data-bs-theme="dark"] .border { border-color: rgba(255,255,255,0.1) !important; }
+
+    /* Estilos específicos para o Dark Mode nos botões (bordas sutis) */
+    [data-bs-theme="dark"] .btn-header-action {
+        background-color: transparent !important;
+        border: 1px solid currentColor !important;
+    }
+    [data-bs-theme="dark"] .btn-action-view { color: #0d6efd !important; }
+    [data-bs-theme="dark"] .btn-action-add { color: #94a3b8 !important; }
+    [data-bs-theme="dark"] .btn-action-assign { color: #198754 !important; }
+    [data-bs-theme="dark"] .btn-action-edit { color: #ffc107 !important; }
+    [data-bs-theme="dark"] .btn-action-delete { color: #dc3545 !important; }
+</style>

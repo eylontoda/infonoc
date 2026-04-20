@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Login - Sea Telecom{% endblock %}
+
+{% block auth_content %}
+<div class="login-wrapper w-100 animate-fade-in" style="max-width: 420px; padding: 1.5rem;">
+    <!-- Card de Login Profissional -->
+    <div class="card border-0 shadow-lg" style="border-radius: 24px; overflow: hidden; background-color: var(--bg-card);">
+        <div class="card-body p-5 text-center">
+            
+            <!-- [NOVO] Logotipo Oficial SVG da Sea Telecom -->
+            <div class="mb-4 d-flex justify-content-center">
+                <img src="{% static 'img/logo_sea_telecom_light-theme.svg' %}" alt="Sea Telecom" class="img-fluid logo-light" style="max-height: 80px;">
+                <img src="{% static 'img/logo-seatelecom_dark-theme.svg' %}" alt="Sea Telecom" class="img-fluid logo-dark" style="max-height: 80px;">
+            </div>
+            
+            <div class="mb-4">
+                <h4 class="fw-bold mb-1" style="color: var(--primary-color); letter-spacing: -0.5px;">BEM-VINDO</h4>
+                <p class="text-muted small">Central de Monitoramento NOC</p>
+            </div>
+
+            <!-- Alertas de Erro (Django Auth) -->
+            {% if form.errors or messages %}
+                <div class="alert alert-danger py-2 px-3 small rounded-3 border-0 bg-danger bg-opacity-10 text-danger text-start mb-4">
+                    <ul class="mb-0 ps-3">
+                        {% for field, errors in form.errors.items %}{% for error in errors %}<li>{{ error }}</li>{% endfor %}{% endfor %}
+                        {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            <!-- Formulário de Autenticação -->
+            <form method="POST" action="{% url 'users:login' %}" class="text-start">
+                {% csrf_token %}
+                
+                <!-- [NOVO] Floating Labels para um visual moderno e limpo -->
+                <div class="form-floating mb-3">
+                    <input type="text" name="username" class="form-control" id="id_username" placeholder="Usuário" required autofocus>
+                    <label for="id_username" class="text-muted small">Usuário</label>
+                </div>
+                
+                <div class="form-floating mb-4">
+                    <input type="password" name="password" class="form-control" id="id_password" placeholder="Senha" required>
+                    <label for="id_password" class="text-muted small">Senha</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-3 fw-bold shadow-sm" 
+                        style="background-color: var(--primary-color); border: none; border-radius: 12px; transition: transform 0.2s;">
+                    <i class="bi bi-box-arrow-in-right me-2"></i> Entrar no sistema
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Rodapé Minimalista -->
+    <div class="text-center mt-4 opacity-50">
+        <small style="font-size: 0.75rem; color: var(--text-main);">
+            &copy; {% now "Y" %} Sea Telecom LTDA <br> Acesso Restrito a Colaboradores. Todos os direitos Reservados
+        </small>
+    </div>
+</div>
+
+<style>
+    /* [NOVO] Ajustes finos para compatibilidade com o tema Bootstrap 5.3 */
+    .form-control {
+        background-color: transparent !important;
+        border: 1px solid var(--border-color);
+        color: var(--text-main) !important;
+        border-radius: 14px;
+        height: 60px;
+    }
+    
+    .form-control:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 4px rgba(0, 136, 145, 0.1);
+    }
+    
+    .form-floating > label { 
+        color: var(--text-main) !important; 
+        opacity: 0.7; 
+    }
+
+    /* Animação suave de entrada */
+    .animate-fade-in {
+        animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(15px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    /* [NOVO] Lógica de troca de logos */
+    [data-bs-theme="light"] .logo-dark { display: none; }
+    [data-bs-theme="dark"] .logo-light { display: none; }
+
+    /* [NOVO] Customização do Tema Escuro para o Login */
+    [data-bs-theme="dark"] h4 {
+        color: #60c4b0 !important; /* Cor do BEM-VINDO */
+    }
+
+    [data-bs-theme="dark"] .btn-primary, 
+    [data-bs-theme="dark"] .btn-login {
+        background-color: #60c4b0 !important; /* Cor do Botão */
+        color: #012b40 !important;            /* Texto em Azul Escuro para contraste */
+        border: none;
+    }
+</style>
+{% endblock %}

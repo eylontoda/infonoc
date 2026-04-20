@@ -1,0 +1,230 @@
+<div class="incident-update-content animate-fade-in" style="font-size: 11px;">
+    
+    <!-- Cabeçalho Modular -->
+    {% include 'users/partials/header_incidente.html' with header_title="Atualização de Incidente" %}
+
+    <!-- Formulário Principal de Atualização (Controlado via HTMX) -->
+    <form id="formAtualizacaoInformativo" class="mb-1"
+          hx-post="/incidents/atualizar-ajax/{{ incident.mk_protocol }}/" 
+          hx-target="#conteudoAtualizacao"
+          hx-swap="innerHTML">
+        {% csrf_token %}
+        
+        <!-- Novo Status -->
+        <div class="mb-1">
+            <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Status</label>
+            <select class="form-select form-select-sm shadow-none" name="status_id" id="selectStatusOffcanvas" required style="font-size: 11px;">
+                <!-- 'Excluido' e 'Escalonado' serão filtrados na View -->
+                {% for status in lista_status %}
+                    <option value="{{ status.id }}" {% if status.id == incident.status_id %}selected{% endif %}>
+                        {{ status.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Grade de Parametrização -->
+        <div class="row g-2 mb-1">
+            <!-- Tipo de Impacto -->
+            <div class="col-6">
+                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Tipo de Impacto</label>
+                <select class="form-select form-select-sm shadow-none" name="impact_type_id" style="font-size: 11px;">
+                    {% for imp_type in lista_tipos_impacto %}
+                        <option value="{{ imp_type.id }}" {% if incident.impact_type_id == imp_type.id %}selected{% endif %}>{{ imp_type.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Nível de Impacto -->
+            <div class="col-6">
+                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Nível de Impacto</label>
+                <select class="form-select form-select-sm shadow-none" name="impact_level_id" style="font-size: 11px;">
+                    {% for imp_lvl in lista_niveis_impacto %}
+                        <option value="{{ imp_lvl.id }}" {% if incident.impact_level_id == imp_lvl.id %}selected{% endif %}>{{ imp_lvl.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Categoria de Cliente -->
+            <div class="col-6">
+                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Tipo de Cliente</label>
+                <select class="form-select form-select-sm shadow-none" name="client_type_id" style="font-size: 11px;">
+                    {% for cli_type in lista_tipos_cliente %}
+                        <option value="{{ cli_type.id }}" {% if incident.client_type_id == cli_type.id %}selected{% endif %}>{{ cli_type.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- SLA -->
+            <div class="col-6">
+                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">SLA Aplicado</label>
+                <select class="form-select form-select-sm shadow-none" name="sla_id" style="font-size: 11px;">
+                    {% for sla in lista_slas %}
+                        <option value="{{ sla.id }}" {% if incident.sla_id == sla.id %}selected{% endif %}>{{ sla.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Toggle de Condição de Impacto Geral -->
+        <div class="mb-1">
+            <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Condição Ativa de Afetação</label>
+            <div class="btn-group w-100 shadow-sm" role="group">
+                <input type="radio" class="btn-check" name="is_impact_active" id="impactoAtivo" value="True" autocomplete="off" {% if incident.is_impact_active %}checked{% endif %}>
+                <label class="btn btn-outline-danger btn-sm" for="impactoAtivo" style="font-size: 11px;"><i class="bi bi-exclamation-triangle me-1"></i> Com afetação</label>
+
+                <input type="radio" class="btn-check" name="is_impact_active" id="impactoInativo" value="False" autocomplete="off" {% if not incident.is_impact_active %}checked{% endif %}>
+                <label class="btn btn-outline-success btn-sm" for="impactoInativo" style="font-size: 11px;"><i class="bi bi-check-circle me-1"></i> Sem afetação</label>
+            </div>
+        </div>
+
+        <!-- Nota Técnica -->
+        <div class="mb-1">
+            <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Nota Técnica</label>
+            <textarea class="form-control form-control-sm shadow-none font-monospace" name="technical_note" rows="3" required placeholder="Descreva as ações realizadas..." style="font-size: 11px; resize: none;"></textarea>
+        </div>
+
+        <!-- [NOVO] Seção de Escalonamento (Visível se 'Escalonado' selecionado) -->
+        <div id="escalonamentoContainer" class="border rounded mb-1 d-none bg-primary-subtle">
+            <div class="p-2 border-bottom">
+                <span style="font-size: 10px; font-weight: bold; color: var(--text-main);">
+                    <i class="bi bi-person-up me-2 text-primary"></i> Escalonamento
+                </span>
+            </div>
+            <div class="p-2">
+                <label class="form-label text-muted mb-1" style="font-size: 9px;">Atribuir Para</label>
+                <select class="form-select form-select-sm shadow-none" name="assigned_to_id" style="font-size: 11px;">
+                    <option value="">Selecione o Usuário...</option>
+                    {% for user_esc in lista_usuarios %}
+                        <option value="{{ user_esc.id }}">{{ user_esc.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- [NOVO] Seção de Encerramento (Visível se 'Normalizado' selecionado) -->
+        <div id="normalizacaoExtraContainer" class="border rounded mb-1 d-none bg-success-subtle">
+            <div class="p-2 border-bottom">
+                <span style="font-size: 10px; font-weight: bold; color: var(--text-main);">
+                    <i class="bi bi-shield-check me-2 text-success"></i> Detalhes da Normalização
+                </span>
+            </div>
+            <div class="p-2">
+                <!-- Root Cause -->
+                <div class="mb-2">
+                    <label class="form-label text-muted mb-1" style="font-size: 9px;">Causa Raiz</label>
+                    <select class="form-select form-select-sm shadow-none" name="root_cause_id" style="font-size: 11px;">
+                        <option value="">Selecione...</option>
+                        {% for cause in lista_causas_raiz %}
+                            <option value="{{ cause.id }}">{{ cause.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Observações (Note) -->
+                <div class="mb-2">
+                    <label class="form-label text-muted mb-1" style="font-size: 9px;">Observação Final (Note)</label>
+                    <textarea class="form-control form-control-sm shadow-none" name="note" rows="2" placeholder="Notas internas sobre a solução..." style="font-size: 11px; resize: none;"></textarea>
+                </div>
+
+                <!-- RFO -->
+                <div class="mb-3">
+                    <label class="form-label text-muted mb-1" style="font-size: 9px;">RFO (Relatório de Falha)</label>
+                    <textarea class="form-control form-control-sm shadow-none" name="rfo" rows="2" placeholder="Resumo para o cliente..." style="font-size: 11px; resize: none;"></textarea>
+                </div>
+
+                <!-- [MERGE] Ajuste Final de Horários incorporado aqui -->
+                {% if perms.incidents.can_edit_admin_fields %}
+                <div class="border-top pt-2 mt-2">
+                    <span class="d-block mb-2" style="font-size: 10px; font-weight: bold; color: var(--text-main);">
+                        <i class="bi bi-clock-history me-1 text-success"></i> Ajuste Final de Horários
+                    </span>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label text-muted mb-1" style="font-size: 9px;">Início Real</label>
+                            <input type="datetime-local" class="form-control form-control-sm shadow-none" name="occured_at" value="{{ incident.occured_at|date:'Y-m-d\TH:i' }}" style="font-size: 10px;">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted mb-1" style="font-size: 9px;">Normalização Real</label>
+                            <input type="datetime-local" class="form-control form-control-sm shadow-none" name="resolved_at" value="" style="font-size: 10px;">
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+
+        <!-- Botão de Ação -->
+        <button type="submit" class="btn w-100 fw-bold shadow-sm d-flex justify-content-center align-items-center gap-2" style="background-color: #008891; color: white; font-size: 12px; padding: 8px;">
+            <i class="bi bi-send-check"></i> Registrar Atualização
+        </button>
+    </form>
+
+    <hr>
+
+    <!-- Mini-Histórico -->
+    <div class="quick-history">
+        <h6 class="fw-bold mb-3 d-flex justify-content-between align-items-center" style="font-size: 10px;">
+            <span><i class="bi bi-clock-history me-1"></i> Registros Anteriores</span>
+        </h6>
+        
+        {% include 'users/partials/history_timeline.html' %}
+    </div>
+</div>
+
+<script>
+    // Script isolado para controlar a exibição do painel de horários
+    (function() {
+        const selectStatus = document.getElementById('selectStatusOffcanvas');
+        const containerEscalonamento = document.getElementById('escalonamentoContainer');
+        const containerNormalizacao = document.getElementById('normalizacaoExtraContainer');
+        
+        function verificarStatus() {
+            if (!selectStatus) return;
+            const statusTexto = selectStatus.options[selectStatus.selectedIndex].text.trim().toLowerCase();
+            
+            // 1. Detalhes de Solução e Horários (Apenas Normalizado)
+            if (statusTexto === 'normalizado') {
+                if(containerNormalizacao) containerNormalizacao.classList.remove('d-none');
+            } else {
+                if(containerNormalizacao) containerNormalizacao.classList.add('d-none');
+            }
+
+            // 2. Escalonamento
+            if (statusTexto === 'escalonado') {
+                if(containerEscalonamento) containerEscalonamento.classList.remove('d-none');
+            } else {
+                if(containerEscalonamento) containerEscalonamento.classList.add('d-none');
+            }
+        }
+
+        if (selectStatus) {
+            selectStatus.addEventListener('change', verificarStatus);
+            verificarStatus(); // Executa na carga inicial para garantir o estado correto
+        }
+    })();
+</script>
+
+<style>
+    .incident-update-content p, .incident-update-content label { margin-bottom: 0.2rem; }
+    .font-monospace { font-family: 'Consolas', 'Monaco', monospace !important; }
+    
+    .hover-reveal:hover .delete-btn { opacity: 1 !important; }
+    .transition-all { transition: all 0.2s ease; }
+
+    .form-control:focus, .form-select:focus { border-color: #008891; box-shadow: 0 0 0 0.2rem rgba(0, 136, 145, 0.25); }
+
+    .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateX(10px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    
+    [data-bs-theme="dark"] .bg-white { background-color: #1b2a3a !important; border-color: #2d3d4d !important; }
+    [data-bs-theme="dark"] .bg-light { background-color: #162434 !important; border-color: #2d3d4d !important; }
+    [data-bs-theme="dark"] .bg-body-tertiary { background-color: #121e2d !important; }
+    [data-bs-theme="dark"] .text-dark { color: #e1e1e1 !important; }
+    [data-bs-theme="dark"] .text-primary { color: #60c4b0 !important; }
+    [data-bs-theme="dark"] .form-control, [data-bs-theme="dark"] .form-select { background-color: #0b141e; border-color: #2d3d4d; color: #fff; }
+</style>

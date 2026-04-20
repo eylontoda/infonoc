@@ -1,0 +1,75 @@
+/* Estilos extremamente específicos para o histórico no modal de atualizações */
+
+/* Garantir que flexbox não se aplique no card-body do histórico */
+#modalAtualizacao .card-body {
+    display: block !important;
+    padding: 0.75rem !important;
+    max-height: 400px !important;
+    overflow-y: auto !important;
+}
+
+/* Reset e estilos específicos para o histórico de atualizações */
+#modalAtualizacao #lista-historico {
+    display: block !important;
+    list-style: none !important;
+    padding: 8px !important;
+    margin: 0 !important;
+    width: 100% !important;
+}
+
+/* Estilo individual para cada item do histórico */
+#modalAtualizacao #lista-historico li {
+    display: block !important;
+    margin-bottom: 8px !important;
+    background-color: #f8f9fa !important;
+    border-radius: 8px !important;
+    padding: 12px !important;
+    border: 1px solid #e9ecef !important;
+    position: relative !important;
+}
+
+/* Estilo para data e usuário */
+#modalAtualizacao #lista-historico li small {
+    display: block !important;
+    color: #6c757d !important;
+    margin-bottom: 4px !important;
+}
+
+/* Estilo para a descrição do histórico */
+#modalAtualizacao #lista-historico li .descricao-texto {
+    display: block !important;
+    font-size: 0.95rem !important;
+    color: #212529 !important;
+    margin: 8px 0 !important;
+    font-weight: normal !important;
+}
+
+/* Estilo para os badges de status */
+#modalAtualizacao #lista-historico li .badge {
+    display: inline-block !important;
+}
+
+/* Posicionamento dos botões de ação */
+#modalAtualizacao #lista-historico li .btn-group {
+    display: flex !important;
+    justify-content: flex-end !important;
+    margin-top: 8px !important;
+}
+
+/* Estilo para a barra de rolagem */
+#modalAtualizacao .card-body::-webkit-scrollbar {
+    width: 6px !important;
+}
+
+#modalAtualizacao .card-body::-webkit-scrollbar-track {
+    background: #f1f1f1 !important;
+}
+
+#modalAtualizacao .card-body::-webkit-scrollbar-thumb {
+    background: #aaa !important;
+    border-radius: 3px !important;
+}
+
+#modalAtualizacao .card-body::-webkit-scrollbar-thumb:hover {
+    background: #888 !important;
+}

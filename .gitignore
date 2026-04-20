@@ -1,0 +1,42 @@
+# Environment files
+.env
+.env.*
+
+# Build and Static
+staticfiles/
+static/collected/
+media/
+
+# Database
+db.sqlite3
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.python-version
+
+# Logs
+*.log
+logs/
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Docker and Agent
+.docker-compose.persist
+.gemini/
+.antigravity/
