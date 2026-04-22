@@ -365,10 +365,12 @@
                     <th>Inatividade</th>
                     <th>Status</th>
                     <th>Impacto</th>
+                    <th>Previsão</th>
                     <th>Resgate</th>
                     <th class="text-center">Ações</th>
                 </tr>
                 <tr class="filter-row">
+                    <th></th>
                     <th></th>
                     <th></th>
                     <th></th>
@@ -609,6 +611,38 @@
                     }
                 },
                 {
+                    data: 'progress',
+                    className: 'text-start align-middle',
+                    width: '95px',
+                    render: (data, type, row) => {
+                        // Se não houver afetação, deixa vazio conforme solicitado
+                        if (!row.is_impact_active) return '';
+
+                        if (!data) return '<span class="text-muted" style="font-size: 10px;">Sem previsão</span>';
+                        
+                        const circumference = 50.2;
+                        const strokeLength = (data.percent / 100) * circumference;
+                        
+                        let color = "#60c4b0"; // Ciano claro (padrão > 30min)
+                        if (data.is_overdue) {
+                            color = "#dc3545"; // Vermelho (atrasado)
+                        } else if (data.remaining_minutes < 30) {
+                            color = "#ffc107"; // Amarelo (< 30min)
+                        }
+
+                        return `
+                        <div class="d-flex align-items-center" style="line-height: 1;">
+                            <svg width="18" height="18" viewBox="0 0 20 20" class="me-2" style="display: block;">
+                                <circle cx="10" cy="10" r="8" fill="none" stroke="#e9ecef" stroke-width="3" />
+                                <circle cx="10" cy="10" r="8" fill="none" stroke="${color}" stroke-width="3"
+                                        stroke-dasharray="${strokeLength}, ${circumference}" 
+                                        transform="rotate(-90 10 10)" style="transition: stroke-dasharray 0.5s ease;" />
+                            </svg>
+                            <span class="fw-bold" style="font-size: 10px; color: ${color}; line-height: 1; margin-top: 1px;">${data.label}</span>
+                        </div>`;
+                    }
+                },
+                {
                     data: 'assigned_to',
                     className: 'text-center align-middle',
                     defaultContent: 'Livre',
@@ -656,8 +690,8 @@
             initComplete: function () {
                 const api = this.api();
 
-                // Popular os Dropdowns do cabeçalho
-                api.columns([4, 5, 6, 7]).every(function () {
+                // Popular os Dropdowns do cabeçalho (Inatividade, Status, Impacto, Resgate)
+                api.columns([4, 5, 6, 8]).every(function () {
                     const column = this;
                     const select = $('#tabelaInformativos thead tr.filter-row th').eq(column.index()).find('select');
 
@@ -871,7 +905,7 @@
             table.column(statusColIndex).search('^(?!Normalizado$).*', true, false);
             
             // Localiza o select da coluna Status (index 5) e define como "Não Normalizados"
-            // Como temos selects nas colunas 4, 5, 6, 7, o de status é o segundo (index 1 no jQuery)
+            // Como temos selects nas colunas 4, 5, 6, 8, o de status é o segundo (index 1 no jQuery)
             $('.column-filter-select').eq(1).val('NOT_NORMALIZADO');
 
             table.draw();

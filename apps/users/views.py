@@ -733,6 +733,36 @@ async def api_incidents_list(request):
             elif tipo_nome == 'R.A.':
                 designator = inc.device.name if inc.device else "S/D"
 
+            # --- CÁLCULO DE PROGRESSO (PREVISÃO) ---
+            progress_data = None
+            if inc.occured_at and inc.expected_at:
+                total_duration = (inc.expected_at - inc.occured_at).total_seconds()
+                elapsed_duration = (hoje - inc.occured_at).total_seconds()
+                
+                if total_duration > 0:
+                    percent = min(100, max(0, (elapsed_duration / total_duration) * 100))
+                else:
+                    percent = 100 if hoje >= inc.expected_at else 0
+
+                remaining_seconds = (inc.expected_at - hoje).total_seconds()
+                is_overdue = remaining_seconds < 0
+                
+                if is_overdue:
+                    label = "Atrasado"
+                else:
+                    rem_min = int(remaining_seconds / 60)
+                    if rem_min < 60:
+                        label = f"{rem_min} min"
+                    else:
+                        label = f"{int(rem_min/60)}h {rem_min%60}m"
+
+                progress_data = {
+                    'percent': percent,
+                    'label': label,
+                    'is_overdue': is_overdue,
+                    'remaining_minutes': int(abs(remaining_seconds) / 60)
+                }
+
             data_list.append({
                 'id': inc.id,
                 'protocol': inc.mk_protocol or "S/P",
@@ -744,6 +774,7 @@ async def api_incidents_list(request):
                 'is_impact_active': inc.is_impact_active,
                 'inactivity_minutes': inactivity_minutes,
                 'assigned_to': inc.assigned_to.username if inc.assigned_to else "Livre",
+                'progress': progress_data,
             })
         return data_list
 

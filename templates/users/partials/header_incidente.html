@@ -58,7 +58,7 @@
             <span class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size: 9px; letter-spacing: 0.3px;">Status</span>
             <div class="d-flex align-items-center justify-content-center flex-grow-1">
                 <span class="badge w-100 py-1" 
-                    style="background-color: {% if incident.status.name == 'Em andamento' %}#008891{% elif incident.status.name == 'Normalizado' %}#7da233{% elif incident.status.name == 'Escalonado' %}#ffc107{% else %}#60c4b0{% endif %}; 
+                    style="background-color: {% if incident.status.name == 'Em andamento' %}#008891{% elif incident.status.name == 'Normalizado' %}#198754{% elif incident.status.name == 'Escalonado' %}#ffc107{% elif incident.status.name == 'Pausado' %}#6c757d{% elif 'valida' in incident.status.name.lower %}#6f42c1{% elif 'terceiro' in incident.status.name.lower %}#fd7e14{% else %}#60c4b0{% endif %}; 
                            color: {% if incident.status.name == 'Escalonado' %}#000{% else %}#fff{% endif %}; 
                            font-size: 10px; border-radius: 4px; line-height: 1.2;">
                     {{ incident.status.name }}
