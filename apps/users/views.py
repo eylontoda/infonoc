@@ -939,13 +939,74 @@ async def excluir_incidente_ajax(request, protocolo):
     return JsonResponse({'success': success})
 async def novo_incidente_ajax(request):
     """
-    Retorna o formulário de abertura de novo incidente para o offcanvas.
+    Retorna o formulário de abertura de novo incidente para o Modal.
     """
     try:
         user = await request.auser()
         if not user.is_authenticated:
             return HttpResponse("<div class='alert alert-warning m-3'>Sessão expirada.</div>", status=401)
 
-        return HttpResponse("<div class='alert alert-info m-3'>Interface de Abertura de Chamado em desenvolvimento.</div>")
+        @sync_to_async
+        def get_context():
+            # Ordenação manual para SLA (Extraindo horas)
+            slas = list(SLA.objects.all())
+            def get_sla_hours(s):
+                if 'h' in s.name.lower():
+                    try: return int(s.name.lower().replace('h',''))
+                    except: return 999
+                return 1000
+            slas.sort(key=get_sla_hours)
+
+            # Ordenação manual para Nível de Impacto
+            niveis_ordem = [
+                'Nenhum cliente', 'Em análise', '01 à 31 clientes', '32 à 100 clientes', 
+                '100 à 500 clientes', '500 à 1000 clientes', '1000 à 2000 clientes', 
+                '2000 à 5000 clientes', 'Mais de 5000 clientes', 'Todos os clientes'
+            ]
+            niveis = list(ImpactLevel.objects.all())
+            niveis.sort(key=lambda x: niveis_ordem.index(x.name) if x.name in niveis_ordem else 999)
+
+            # Ordenação para Tipo de Impacto (Total primeiro)
+            tipos_impacto = list(ImpactType.objects.all())
+            tipos_ordem = ['Total', 'Parcial', 'Intermitente', 'Nenhum']
+            tipos_impacto.sort(key=lambda x: tipos_ordem.index(x.name) if x.name in tipos_ordem else 999)
+
+            # Ordenação para Segmento de Cliente
+            clientes = list(ClientType.objects.all())
+            clientes_ordem = ['Banda Larga', 'Dedicado', 'Banda Larga e Dedicado', 'Nenhum', 'Em Análise']
+            clientes.sort(key=lambda x: clientes_ordem.index(x.name) if x.name in clientes_ordem else 999)
+
+            return {
+                'lista_status': list(Status.objects.all().order_by('name')),
+                'lista_tipos': list(IncidentType.objects.all().order_by('name')),
+                'lista_sintomas': list(Symptom.objects.all().order_by('name')),
+                'lista_slas': slas,
+                'lista_fontes': list(DetectionSource.objects.all().order_by('name')),
+                'lista_clientes': clientes,
+                'lista_impacto_tipos': tipos_impacto,
+                'lista_impacto_niveis': niveis,
+                'lista_regioes': list(Region.objects.all().order_by('name')),
+                'now': timezone.now(),
+
+                # Infra para Designador
+                'lista_sites': list(Site.objects.filter(netbox_status__slug='active').order_by('name')),
+                'lista_circuitos_backbone': list(Circuit.objects.filter(
+                    netbox_status__slug='active',
+                    type__slug__in=['ce', 'rede-backbone-terceiros', 'rede-backbone-prpria']
+                ).order_by('name')),
+                'lista_circuitos_core': list(Circuit.objects.filter(
+                    netbox_status__slug='active',
+                    type__slug__in=['capacidade-ip', 'ptt']
+                ).order_by('name')),
+                'lista_devices': list(Device.objects.select_related('site').filter(
+                    netbox_status__slug='active', 
+                    role__slug='olt'
+                ).order_by('name')),
+            }
+
+        context = await get_context()
+        return render(request, 'users/partials/novo_incidente_modal.html', context)
+
     except Exception as e:
-        return HttpResponse(f"<div class='alert alert-danger m-3'>Erro: {str(e)}</div>")
+        error_msg = f"<strong>Erro:</strong> {str(e)}<br><small>{traceback.format_exc()}</small>"
+        return HttpResponse(f"<div class='alert alert-danger m-3' style='font-size: 11px;'>{error_msg}</div>")

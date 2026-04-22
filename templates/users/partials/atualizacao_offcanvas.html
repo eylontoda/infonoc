@@ -27,7 +27,9 @@
                 <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Previsão
                     (ETR)</label>
                 <input type="datetime-local" class="form-control form-control-sm shadow-none" name="expected_at" id="inputExpectedAt"
-                    value="{{ incident.expected_at|date:'Y-m-d\TH:i' }}" style="font-size: 11px;">
+                    value="{{ incident.expected_at|date:'Y-m-d\TH:i' }}" style="font-size: 11px;"
+                    oninvalid="this.setCustomValidity('Afetação ativa exige previsão!')" 
+                    oninput="this.setCustomValidity('')">
                 <div id="errorExpectedAt" class="invalid-feedback" style="font-size: 9px;">A previsão deve ser uma data futura.</div>
             </div>
         </div>

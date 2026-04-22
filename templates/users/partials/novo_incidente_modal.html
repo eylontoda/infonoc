@@ -1,0 +1,401 @@
+<form id="formNovoIncidente" hx-post="/novo-ajax/" hx-target="#conteudoNovo" class="p-1">
+    {% csrf_token %}
+
+    <!-- Seção 1: Identificação e Status -->
+    <div class="row g-2 mb-1">
+        <div class="col-6">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Protocolo MK / Externo</label>
+            <input type="text" name="mk_protocol" class="form-control form-control-sm shadow-none" placeholder="Ex: 20241020..." style="font-size: 11px;">
+        </div>
+        <div class="col-6">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Status Inicial</label>
+            <select name="status_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;" required>
+                {% for s in lista_status %}
+                    <option value="{{ s.id }}" {% if s.name == 'Em andamento' %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Seção 2: Classificação -->
+    <div class="row g-2 mb-1">
+        <div class="col-4">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Tipo de Incidente</label>
+            <select name="incident_type_id" id="selectTipoNovo" class="form-select form-select-sm shadow-none" style="font-size: 11px;" required>
+                <option value="">Selecione...</option>
+                {% for t in lista_tipos %}
+                    <option value="{{ t.id }}">{{ t.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-4">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Sintoma Reportado</label>
+            <select name="reported_symptom_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
+                <option value="">Selecione...</option>
+                {% for s in lista_sintomas %}
+                    <option value="{{ s.id }}">{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-4">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Fonte de Detecção</label>
+            <select name="detection_source_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
+                <option value="">Selecione...</option>
+                {% for f in lista_fontes %}
+                    <option value="{{ f.id }}">{{ f.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Seção: DESIGNADOR (Dinâmico) -->
+    <div class="mb-1">
+        <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">DESIGNADOR</label>
+        
+        <!-- Sites -->
+        <div id="containerSiteNovo" class="designador-field-novo d-none">
+            <input type="text" class="form-control form-control-sm shadow-none mb-1" list="listSitesNovo" id="inputSiteNovo" placeholder="Pesquisar Site..." style="font-size: 11px;">
+            <input type="hidden" name="site_id" id="hiddenSiteIdNovo">
+            <datalist id="listSitesNovo">
+                {% for site in lista_sites %}
+                    <option data-id="{{ site.id }}" value="{{ site.facility }} - {{ site.name }}"></option>
+                {% endfor %}
+            </datalist>
+        </div>
+
+        <!-- Circuitos Backbone -->
+        <div id="containerCircuitoBackboneNovo" class="designador-field-novo d-none">
+            <input type="text" class="form-control form-control-sm shadow-none mb-1" list="listCircuitosBackboneNovo" id="inputCircuitoBackboneNovo" placeholder="Pesquisar Circuito Backbone..." style="font-size: 11px;">
+            <datalist id="listCircuitosBackboneNovo">
+                {% for circ in lista_circuitos_backbone %}
+                    <option data-id="{{ circ.id }}" value="{{ circ.name }}"></option>
+                {% endfor %}
+            </datalist>
+        </div>
+
+        <!-- Circuitos Core -->
+        <div id="containerCircuitoCoreNovo" class="designador-field-novo d-none">
+            <input type="text" class="form-control form-control-sm shadow-none mb-1" list="listCircuitosCoreNovo" id="inputCircuitoCoreNovo" placeholder="Pesquisar Circuito Core..." style="font-size: 11px;">
+            <datalist id="listCircuitosCoreNovo">
+                {% for circ in lista_circuitos_core %}
+                    <option data-id="{{ circ.id }}" value="{{ circ.name }}"></option>
+                {% endfor %}
+            </datalist>
+        </div>
+        
+        <input type="hidden" name="circuit_id" id="hiddenCircuitoIdNovo">
+
+        <!-- Devices -->
+        <div id="containerDeviceNovo" class="designador-field-novo d-none">
+            <input type="text" class="form-control form-control-sm shadow-none mb-1" list="listDevicesNovo" id="inputDeviceNovo" placeholder="Pesquisar Device..." style="font-size: 11px;">
+            <input type="hidden" name="device_id" id="hiddenDeviceIdNovo">
+            <datalist id="listDevicesNovo">
+                {% for dev in lista_devices %}
+                    <option data-id="{{ dev.id }}" value="{{ dev.name }} ({{ dev.site.name }})"></option>
+                {% endfor %}
+            </datalist>
+        </div>
+        <small class="text-muted d-block" style="font-size: 8px;"><i class="bi bi-info-circle me-1"></i> Selecione o tipo de incidente para habilitar a busca de infraestrutura</small>
+    </div>
+
+    <!-- Toggle de Afetação -->
+    <div class="mb-2">
+        <label class="form-label fw-bold text-muted text-uppercase mb-1 d-block text-center" style="font-size: 9px;">Status da Afetação</label>
+        <div class="btn-group w-100 shadow-sm" role="group">
+            <input type="radio" class="btn-check" name="is_impact_active" id="impactoAtivoNovo" value="True" checked>
+            <label class="btn btn-outline-danger btn-sm py-1" for="impactoAtivoNovo" style="font-size: 10px;">
+                <i class="bi bi-exclamation-triangle me-1"></i> Com afetação
+            </label>
+
+            <input type="radio" class="btn-check" name="is_impact_active" id="impactoInativoNovo" value="False">
+            <label class="btn btn-outline-success btn-sm py-1" for="impactoInativoNovo" style="font-size: 10px;">
+                <i class="bi bi-check-circle me-1"></i> Sem afetação
+            </label>
+        </div>
+    </div>
+
+    <!-- Seção de Impacto -->
+    <div class="row g-2 mb-1">
+        <div class="col-6">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Tipo de Impacto</label>
+            <select name="impact_type_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
+                {% for t in lista_impacto_tipos %}
+                    <option value="{{ t.id }}">{{ t.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-6">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Nível de Impacto</label>
+            <select name="impact_level_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
+                {% for l in lista_impacto_niveis %}
+                    <option value="{{ l.id }}">{{ l.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Seção 3: SLA e Cliente -->
+    <div class="row g-2 mb-1">
+        <div class="col-6">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">SLA Inicial</label>
+            <select name="sla_id" id="selectSlaNovo" class="form-select form-select-sm shadow-none" style="font-size: 11px;" required>
+                {% for s in lista_slas %}
+                    <option value="{{ s.id }}" data-hours="{{ s.name|slice:':-1' }}" {% if s.name == '4h' %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-6">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Segmento de Cliente</label>
+            <select name="client_type_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;" required>
+                {% for c in lista_clientes %}
+                    <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Seção 4: Descrição -->
+    <div class="mb-1">
+        <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Descrição do Evento / Designador</label>
+        <textarea name="description" class="form-control form-control-sm shadow-none" rows="2" 
+                  placeholder="Descreva o incidente..." style="font-size: 11px; resize: none;" required></textarea>
+    </div>
+
+    <!-- Seção 5: Afetação e Datas -->
+    <div class="row g-2 mb-1">
+        <div class="col-6">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Início da Ocorrência</label>
+            <input type="datetime-local" name="occured_at" id="inputOccuredAt" class="form-control form-control-sm shadow-none" 
+                   value="{{ now|date:'Y-m-d\TH:i' }}" style="font-size: 11px;" required>
+        </div>
+        <div class="col-6">
+            <label id="labelExpectedAt" class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Previsão (ETR)</label>
+            <input type="datetime-local" name="expected_at" id="inputExpectedAt" class="form-control form-control-sm shadow-none" 
+                   style="font-size: 11px;" oninvalid="this.setCustomValidity('Afetação ativa exige previsão!')" oninput="this.setCustomValidity('')">
+        </div>
+    </div>
+
+    <!-- Seção 6: Regiões Afetadas -->
+    <div id="containerRegionsNovo" class="border rounded p-2 mb-2" style="background-color: rgba(0,0,0,0.02);">
+        <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Cidades/Regiões Afetadas</label>
+        <div id="selectedRegionsTags" class="d-flex flex-wrap gap-1 mb-1" style="min-height: 20px;"></div>
+        <div class="input-group input-group-sm mb-1">
+            <span class="input-group-text bg-transparent border-end-0" style="font-size: 10px;"><i class="bi bi-search"></i></span>
+            <input type="text" id="filterRegions" class="form-control form-control-sm border-start-0 ps-0 shadow-none" placeholder="Filtrar cidades..." style="font-size: 11px;">
+        </div>
+        <div class="border rounded p-2 bg-body-tertiary overflow-auto" id="containerRegionsList" style="max-height: 100px;">
+            <div class="row g-2">
+                {% for region in lista_regioes %}
+                <div class="col-6 region-item">
+                    <div class="form-check">
+                        <input class="form-check-input region-checkbox" type="checkbox" name="affected_regions" 
+                               value="{{ region.id }}" id="regNovo_{{ region.id }}" data-name="{{ region.name }}">
+                        <label class="form-check-label" for="regNovo_{{ region.id }}" style="font-size: 10px; cursor: pointer;">
+                            {{ region.name }}
+                        </label>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-footer border-top p-2 bg-light" style="margin: 0 -12px -12px -12px; border-bottom-left-radius: 15px; border-bottom-right-radius: 15px;">
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" style="font-size: 11px;">Cancelar</button>
+        <button type="submit" class="btn btn-sm text-white px-3 fw-bold" style="background-color: #008891; font-size: 11px;">
+            <i class="bi bi-rocket-takeoff me-1"></i> Abrir Incidente
+        </button>
+    </div>
+</form>
+
+<script>
+    (function() {
+        const inputOccured = document.getElementById('inputOccuredAt');
+        const inputETR = document.getElementById('inputExpectedAt');
+        const selectSla = document.getElementById('selectSlaNovo');
+        const radioAtivo = document.getElementById('impactoAtivoNovo');
+        const labelETR = document.getElementById('labelExpectedAt');
+        const containerRegions = document.getElementById('containerRegionsNovo');
+        const selectTipo = document.getElementById('selectTipoNovo');
+
+        // Lógica de Sync para Datalists (Idêntica ao Pencil Edit)
+        function setupSync(inputId, listId, hiddenId) {
+            const input = document.getElementById(inputId);
+            const list = document.getElementById(listId);
+            const hidden = document.getElementById(hiddenId);
+            if (!input || !list || !hidden) return;
+
+            input.addEventListener('input', function() {
+                const val = this.value;
+                const options = list.options;
+                let found = false;
+                for (let i = 0; i < options.length; i++) {
+                    if (options[i].value === val) {
+                        hidden.value = options[i].getAttribute('data-id');
+                        found = true;
+                        break;
+                    }
+                }
+                
+                if (!found && val.length > 0) {
+                    hidden.value = "";
+                    this.setCustomValidity("Selecione um item válido da lista (não é permitido texto livre).");
+                } else {
+                    this.setCustomValidity("");
+                }
+                this.reportValidity();
+            });
+        }
+
+        setupSync('inputSiteNovo', 'listSitesNovo', 'hiddenSiteIdNovo');
+        setupSync('inputCircuitoBackboneNovo', 'listCircuitosBackboneNovo', 'hiddenCircuitoIdNovo');
+        setupSync('inputCircuitoCoreNovo', 'listCircuitosCoreNovo', 'hiddenCircuitoIdNovo');
+        setupSync('inputDeviceNovo', 'listDevicesNovo', 'hiddenDeviceIdNovo');
+
+        function toggleDesignadores() {
+            if (!selectTipo) return;
+            const tipoNome = selectTipo.options[selectTipo.selectedIndex].text;
+            
+            // Oculta todos e remove obrigatoriedade
+            document.querySelectorAll('.designador-field-novo').forEach(el => {
+                el.classList.add('d-none');
+                const inp = el.querySelector('input[type="text"]');
+                if (inp) {
+                    inp.removeAttribute('required');
+                    inp.setCustomValidity("");
+                }
+            });
+            
+            // Mostra o relevante e torna obrigatório
+            let targetId = "";
+            if (tipoNome === 'Site') targetId = 'containerSiteNovo';
+            else if (tipoNome === 'Backbone') targetId = 'containerCircuitoBackboneNovo';
+            else if (tipoNome === 'Core') targetId = 'containerCircuitoCoreNovo';
+            else if (tipoNome === 'R.A.' || tipoNome === 'Equipamento') targetId = 'containerDeviceNovo';
+
+            if (targetId) {
+                const container = document.getElementById(targetId);
+                container.classList.remove('d-none');
+                const inp = container.querySelector('input[type="text"]');
+                if (inp) inp.setAttribute('required', 'required');
+            }
+        }
+
+        selectTipo.addEventListener('change', toggleDesignadores);
+
+        function atualizarEtrPeloSla() {
+            if (!inputOccured.value) return;
+            const selectedOption = selectSla.options[selectSla.selectedIndex];
+            const hoursRaw = selectedOption.dataset.hours;
+            if (hoursRaw && !isNaN(hoursRaw)) {
+                const hours = parseInt(hoursRaw);
+                const startDate = new Date(inputOccured.value);
+                const endDate = new Date(startDate.getTime() + (hours * 60 * 60 * 1000));
+                const yyyy = endDate.getFullYear();
+                const mm = String(endDate.getMonth() + 1).padStart(2, '0');
+                const dd = String(endDate.getDate()).padStart(2, '0');
+                const hh = String(endDate.getHours()).padStart(2, '0');
+                const min = String(endDate.getMinutes()).padStart(2, '0');
+                inputETR.value = `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+            }
+        }
+
+        selectSla.addEventListener('change', atualizarEtrPeloSla);
+        inputOccured.addEventListener('change', atualizarEtrPeloSla);
+
+        function toggleImpacto() {
+            const impactType = document.querySelector('select[name="impact_type_id"]');
+            const impactLevel = document.querySelector('select[name="impact_level_id"]');
+            const clientType = document.querySelector('select[name="client_type_id"]');
+
+            if (radioAtivo.checked) {
+                inputETR.removeAttribute('disabled');
+                inputETR.setAttribute('required', 'required');
+                if (impactType) impactType.removeAttribute('disabled');
+                if (impactLevel) impactLevel.removeAttribute('disabled');
+                if (selectSla) selectSla.removeAttribute('disabled');
+                if (clientType) clientType.removeAttribute('disabled');
+                labelETR.innerHTML = 'Previsão (ETR) <span class="text-danger">*</span>';
+                containerRegions.style.opacity = '1';
+                containerRegions.style.pointerEvents = 'auto';
+                atualizarEtrPeloSla();
+            } else {
+                inputETR.setAttribute('disabled', 'disabled');
+                inputETR.removeAttribute('required');
+                inputETR.value = '';
+                if (impactType) {
+                    const opt = Array.from(impactType.options).find(o => o.text === 'Nenhum');
+                    if (opt) impactType.value = opt.value;
+                    impactType.setAttribute('disabled', 'disabled');
+                }
+                if (impactLevel) {
+                    const opt = Array.from(impactLevel.options).find(o => o.text === 'Nenhum cliente');
+                    if (opt) impactLevel.value = opt.value;
+                    impactLevel.setAttribute('disabled', 'disabled');
+                }
+                if (selectSla) {
+                    const opt = Array.from(selectSla.options).find(o => o.text === 'Sem SLA');
+                    if (opt) selectSla.value = opt.value;
+                    selectSla.setAttribute('disabled', 'disabled');
+                }
+                if (clientType) {
+                    const opt = Array.from(clientType.options).find(o => o.text === 'Nenhum');
+                    if (opt) clientType.value = opt.value;
+                    clientType.setAttribute('disabled', 'disabled');
+                }
+                labelETR.innerHTML = 'Previsão (ETR)';
+                containerRegions.style.opacity = '0.5';
+                containerRegions.style.pointerEvents = 'none';
+                checkboxes.forEach(cb => cb.checked = false);
+                updateTags();
+            }
+        }
+
+        document.getElementsByName('is_impact_active').forEach(r => {
+            r.addEventListener('change', toggleImpacto);
+        });
+
+        const filterInput = document.getElementById('filterRegions');
+        const tagsContainer = document.getElementById('selectedRegionsTags');
+        const checkboxes = document.querySelectorAll('.region-checkbox');
+        const regionItems = document.querySelectorAll('.region-item');
+
+        function updateTags() {
+            tagsContainer.innerHTML = '';
+            checkboxes.forEach(cb => {
+                if (cb.checked) {
+                    const tag = document.createElement('span');
+                    tag.className = 'badge d-flex align-items-center gap-1 py-1 px-2';
+                    tag.style.fontSize = '9px';
+                    tag.style.cursor = 'pointer';
+                    tag.style.borderRadius = '12px';
+                    tag.style.backgroundColor = '#60c4b0';
+                    tag.style.color = '#fff';
+                    tag.innerHTML = `${cb.dataset.name} <i class="bi bi-x-circle-fill"></i>`;
+                    tag.onclick = () => {
+                        cb.checked = false;
+                        updateTags();
+                    };
+                    tagsContainer.appendChild(tag);
+                }
+            });
+        }
+
+        if (filterInput) {
+            filterInput.addEventListener('input', function() {
+                const term = this.value.toLowerCase();
+                regionItems.forEach(item => {
+                    const label = item.querySelector('label').innerText.toLowerCase();
+                    if (label.includes(term)) item.classList.remove('d-none');
+                    else item.classList.add('d-none');
+                });
+            });
+        }
+
+        checkboxes.forEach(cb => cb.addEventListener('change', updateTags));
+
+        toggleDesignadores();
+        toggleImpacto();
+        updateTags();
+    })();
+</script>
