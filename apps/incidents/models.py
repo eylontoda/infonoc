@@ -118,6 +118,7 @@ class Incident(BaseModel):
     resolved_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
     last_history_update_at = models.DateTimeField(null=True, blank=True)
+    stopped_at = models.DateTimeField(null=True, blank=True)
     circuit = models.ForeignKey('netbox.Circuit', on_delete=models.PROTECT, null=True, blank=True)
     site = models.ForeignKey('netbox.Site', on_delete=models.PROTECT, null=True, blank=True)
     device = models.ForeignKey('netbox.Device', on_delete=models.PROTECT, null=True, blank=True)
@@ -164,6 +165,7 @@ class UpdateIncident(BaseModel):
     impact_type = models.ForeignKey('ImpactType', on_delete=models.PROTECT, null=True, blank=True)
     impact_level = models.ForeignKey('ImpactLevel', on_delete=models.PROTECT, null=True, blank=True)
     expected_at = models.DateTimeField(null=True, blank=True)
+    stopped_at = models.DateTimeField(null=True, blank=True)
 
     tags = models.ManyToManyField(UpdateTag, related_name='updates', blank=True)
 

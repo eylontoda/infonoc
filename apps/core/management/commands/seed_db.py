@@ -96,6 +96,7 @@ class Command(BaseCommand):
             ('expected_at', 'Nova Previsão', '#ffc107', 'bi-clock-history'),
             ('impact_level', 'Nível de Impacto', '#dc3545', 'bi-bar-chart-steps'),
             ('impact_type', 'Tipo de Impacto', '#d63384', 'bi-activity'),
+            ('stopped_at', 'Pausa Programada', '#6f42c1', 'bi-pause-circle'),
         ]
 
         for slug, name, color, icon in tags:

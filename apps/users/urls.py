@@ -34,6 +34,7 @@ urlpatterns = [
     path('incidents/resgatar-ajax/<str:protocolo>/', views.resgatar_incidente_ajax, name='resgatar_incidente_ajax'),
     path('incidents/liberar-ajax/<str:protocolo>/', views.liberar_incidente_ajax, name='liberar_incidente_ajax'),
     path('incidents/excluir-ajax/<str:protocolo>/', views.excluir_incidente_ajax, name='excluir_incidente_ajax'),
+    path('novo-ajax/', views.novo_incidente_ajax, name='novo_incidente_ajax'),
 
 
     # --- [ROTAS FANTASMA DO SEU CRUD] ---

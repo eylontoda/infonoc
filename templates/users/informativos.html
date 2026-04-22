@@ -11,11 +11,19 @@
 <style>
     /* Estilos dos Balões de Status */
     .status-card {
-        padding: 0.6rem 1rem !important;
-        border-radius: 12px;
+        border-radius: 10px;
+        padding: 0.75rem 0.75rem;
         color: white;
-        border: none;
-        transition: transform 0.2s ease;
+        height: 60px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        transition: transform 0.2s;
+        box-shadow: 0 4px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .status-card:hover {
+        transform: translateY(0px);
     }
 
     .status-card-content {
@@ -25,34 +33,33 @@
     }
 
     .status-icon {
-        width: 34px;
-        height: 34px;
+        width: 45px;
+        height: 45px;
+        border-radius: 10px;
         background: rgba(255, 255, 255, 0.2);
-        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.1rem;
+        font-size: 1.25rem;
     }
 
     .status-info h3 {
-        font-size: 1.4rem;
+        font-size: 1.5rem;
         font-weight: 700;
         margin: 0;
-        line-height: 1;
-        min-height: 1.3rem;
-        transition: opacity 0.2s;
+        line-height: 1.1;
     }
 
     .status-info span {
         font-size: 0.75rem;
-        text-transform: uppercase;
-        font-weight: 600;
         opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: block;
     }
 
     .active-card {
-        background: linear-gradient(135deg, #60c4b0 0%, #006b72 100%);
+        background: linear-gradient(135deg, #008891 0%, #006b72 100%);
     }
 
     .resolved-card {
@@ -60,7 +67,7 @@
     }
 
     .alert-card {
-        background: linear-gradient(135deg, #60c4b0 0%, #006b72 100%);
+        background: linear-gradient(135deg, #60c4b0 0%, #4a9e8e 100%);
     }
 
     .critical-card {
@@ -434,6 +441,23 @@
         </div>
     </div>
 
+    <!-- 4. Offcanvas de Criação (Novo Incidente) -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasNovo" aria-labelledby="offcanvasNovoLabel"
+        style="width: 600px;">
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title fw-bold" id="offcanvasNovoLabel">
+                <i class="bi bi-plus-circle-fill me-2" style="color: #008891;"></i>Abrir Novo Incidente
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body" id="conteudoNovo">
+            <div class="text-center py-5">
+                <div class="spinner-border" style="color: #008891;" role="status"></div>
+                <p class="mt-2 text-muted" style="font-size: 11px;">Carregando formulário de abertura...</p>
+            </div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}
 
@@ -472,7 +496,7 @@
             if (['Protocolo', 'Inicio', 'Designador', 'Descrição'].includes(title.trim())) {
                 $(this).html(`<input type="text" class="column-filter" placeholder="🔍 ${title}" />`);
             }
-            else if (['Status', 'Impacto', 'Resgate', 'Inatividade'].includes(title.trim())) {
+            else if (['Status', 'Impacto', 'Resgate', 'Inatividade', 'Previsão'].includes(title.trim())) {
                 let options = '<option value="">Todos</option>';
                 if (title.trim() === 'Status') {
                     options += '<option value="NOT_NORMALIZADO">Não Normalizados</option>';
@@ -480,6 +504,12 @@
                 else if (title.trim() === 'Inatividade') {
                     options += '<option value="INATIVO">Atrasados</option>';
                     options += '<option value="ATIVO">Recentes</option>';
+                    options += '<option value="PAUSADO">Pausados</option>';
+                }
+                else if (title.trim() === 'Previsão') {
+                    options += '<option value="EM_DIA">Em dia</option>';
+                    options += '<option value="PROXIMO">Próximos</option>';
+                    options += '<option value="ATRASADO">Atrasados</option>';
                 }
                 $(this).html(`<select class="column-filter-select">${options}</select>`);
             }
@@ -538,33 +568,40 @@
                     defaultContent: 0,
                     width: '100px',
                     render: (data, type, row) => {
-                        const diffMin = parseInt(data) || 0;
-                        if (type === 'sort') return diffMin;
-
                         const isNormalized = row.status_name === 'Normalizado';
                         if (isNormalized) return '';
+
+                        const isPaused = row.is_paused;
+                        const diffMin = isPaused ? (parseInt(row.paused_minutes) || 0) : (parseInt(data) || 0);
+                        
+                        if (type === 'sort') return isPaused ? -1 : diffMin; // Pausados ficam no topo ou fundo conforme desejado
 
                         const d = Math.floor(diffMin / 1440);
                         const h = Math.floor((diffMin % 1440) / 60);
                         const m = diffMin % 60;
 
-                        let timeStr = "";
+                        let timeStr = isPaused ? "+ " : "";
                         if (d > 0) timeStr += `${d}d `;
                         if (h > 0 || d > 0) timeStr += `${h}h `;
                         timeStr += `${m}min`;
 
                         let color = "#60c4b0";
-                        let barClass = "bg-primary";
-                        let maxVal = row.is_impact_active ? 60 : 180;
+                        let progress = 0;
 
-                        if (row.is_impact_active) {
-                            if (diffMin >= 60) { color = "var(--bs-danger)"; barClass = "bg-danger"; }
-                            else if (diffMin >= 45) { color = "#ffc107"; barClass = "bg-warning"; }
+                        if (isPaused) {
+                            color = "#6c757d"; // Cinza para pausados
+                            progress = row.paused_percent;
                         } else {
-                            if (diffMin >= 180) { color = "var(--bs-danger)"; barClass = "bg-danger"; }
-                            else if (diffMin >= 120) { color = "#ffc107"; barClass = "bg-warning"; }
+                            let maxVal = row.is_impact_active ? 60 : 180;
+                            if (row.is_impact_active) {
+                                if (diffMin >= 60) color = "var(--bs-danger)";
+                                else if (diffMin >= 45) color = "#ffc107";
+                            } else {
+                                if (diffMin >= 180) color = "var(--bs-danger)";
+                                else if (diffMin >= 120) color = "#ffc107";
+                            }
+                            progress = Math.min((diffMin / maxVal) * 100, 100);
                         }
-                        const progress = Math.min((diffMin / maxVal) * 100, 100);
 
                         return `
                             <div class="d-flex flex-column" style="gap: 2px; width: 100%;">
@@ -619,10 +656,10 @@
                         if (!row.is_impact_active) return '';
 
                         if (!data) return '<span class="text-muted" style="font-size: 10px;">Sem previsão</span>';
-                        
+
                         const circumference = 50.2;
                         const strokeLength = (data.percent / 100) * circumference;
-                        
+
                         let color = "#60c4b0"; // Ciano claro (padrão > 30min)
                         if (data.is_overdue) {
                             color = "#dc3545"; // Vermelho (atrasado)
@@ -691,13 +728,13 @@
                 const api = this.api();
 
                 // Popular os Dropdowns do cabeçalho (Inatividade, Status, Impacto, Resgate)
-                api.columns([4, 5, 6, 8]).every(function () {
+                api.columns([4, 5, 6, 7, 8]).every(function () {
                     const column = this;
                     const select = $('#tabelaInformativos thead tr.filter-row th').eq(column.index()).find('select');
 
                     if (select.length > 0) {
-                        // Apenas popula se não for a coluna de Inatividade (que já tem opções fixas)
-                        if (column.index() !== 4) {
+                        // Inatividade (4) e Previsão (7) têm opções fixas
+                        if (column.index() !== 4 && column.index() !== 7) {
                             column.cells('', column.index()).render('filter').unique().sort().each(function (d) {
                                 if (d) select.append(`<option value="${d}">${d}</option>`);
                             });
@@ -707,22 +744,39 @@
                             const val = $(this).val();
 
                             // Limpa filtros customizados globais ao mudar qualquer select
-                            $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(f => f.name !== 'filterInatividade');
+                            $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(f => !['filterInatividade', 'filterPrevisao'].includes(f.name));
 
                             if (val === 'NOT_NORMALIZADO') {
                                 column.search('^(?!Normalizado$).*', true, false).draw();
                             }
-                            else if (val === 'INATIVO' || val === 'ATIVO') {
+                            else if (column.index() === 4 && (val === 'INATIVO' || val === 'ATIVO' || val === 'PAUSADO')) {
                                 const filterFn = function filterInatividade(settings, data, dataIndex) {
                                     const row = table.row(dataIndex).data();
                                     const minutes = parseInt(row.inactivity_minutes) || 0;
                                     const isImpact = row.is_impact_active;
                                     const threshold = isImpact ? 60 : 180;
 
-                                    if (val === 'INATIVO') return minutes >= threshold;
-                                    if (val === 'ATIVO') return minutes < threshold;
+                                    if (val === 'PAUSADO') return row.is_paused;
+                                    if (val === 'INATIVO') return minutes >= threshold && !row.is_paused;
+                                    if (val === 'ATIVO') return minutes < threshold && !row.is_paused;
                                     return true;
                                 };
+                                filterFn.name = 'filterInatividade';
+                                $.fn.dataTable.ext.search.push(filterFn);
+                                table.draw();
+                            }
+                            else if (column.index() === 7 && val) {
+                                const filterFn = function filterPrevisao(settings, data, dataIndex) {
+                                    const row = table.row(dataIndex).data();
+                                    const progress = row.progress;
+                                    if (!progress) return false;
+
+                                    if (val === 'ATRASADO') return progress.is_overdue;
+                                    if (val === 'PROXIMO') return !progress.is_overdue && progress.remaining_minutes < 30;
+                                    if (val === 'EM_DIA') return !progress.is_overdue && progress.remaining_minutes >= 30;
+                                    return true;
+                                };
+                                filterFn.name = 'filterPrevisao';
                                 $.fn.dataTable.ext.search.push(filterFn);
                                 table.draw();
                             }
@@ -733,6 +787,24 @@
                         });
                     }
                 });
+
+                // Inserir Botão "Novo Incidente" ao lado da busca
+                const btnNovoHtml = `
+                    <button class="btn btn-sm text-white me-3 d-flex align-items-center fw-bold transition-all shadow-sm" 
+                            style="background-color: #008891; border-radius: 8px; font-size: 11px; height: 31px; border: none;"
+                            hx-get="/novo-ajax/" hx-target="#conteudoNovo"
+                            data-bs-toggle="offcanvas" data-bs-target="#offcanvasNovo">
+                        <i class="bi bi-plus-lg me-2"></i> Novo incidente
+                    </button>
+                `;
+                const $filterContainer = $('.dataTables_filter');
+                $filterContainer.addClass('d-flex align-items-center');
+                $filterContainer.prepend(btnNovoHtml);
+                
+                // Processa o HTMX no novo botão
+                if (typeof htmx !== 'undefined') {
+                    htmx.process($filterContainer[0]);
+                }
 
                 // Carregamento inicial: "Não Normalizados" (Padrão solicitado)
                 const statusColIndex = 5;
@@ -799,7 +871,7 @@
                         const data = await response.json();
                         if (data.success) {
                             table.ajax.reload(null, false);
-                            
+
                             // Sincroniza o offcanvas se estiver aberto para este protocolo
                             const activeConteudo = document.querySelector('.offcanvas.show [id^="conteudo"]');
                             if (activeConteudo && activeConteudo.getAttribute('data-protocol') === protocolo) {
@@ -839,7 +911,7 @@
                         const data = await response.json();
                         if (data.success) {
                             table.ajax.reload(null, false);
-                            
+
                             // Fecha o offcanvas se estiver aberto para este protocolo
                             const activeOffcanvas = document.querySelector('.offcanvas.show');
                             const activeConteudo = document.querySelector('.offcanvas.show [id^="conteudo"]');
@@ -898,12 +970,12 @@
             table.columns().search('');
 
             // Limpa filtros customizados globais
-            $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(f => f.name !== 'filterInatividade');
+            $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(f => !['filterInatividade', 'filterPrevisao'].includes(f.name));
 
             // Reaplica o filtro padrão de Status
             const statusColIndex = 5;
             table.column(statusColIndex).search('^(?!Normalizado$).*', true, false);
-            
+
             // Localiza o select da coluna Status (index 5) e define como "Não Normalizados"
             // Como temos selects nas colunas 4, 5, 6, 8, o de status é o segundo (index 1 no jQuery)
             $('.column-filter-select').eq(1).val('NOT_NORMALIZADO');

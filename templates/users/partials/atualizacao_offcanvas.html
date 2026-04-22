@@ -26,8 +26,9 @@
             <div class="col-6">
                 <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Previsão
                     (ETR)</label>
-                <input type="datetime-local" class="form-control form-control-sm shadow-none" name="expected_at"
+                <input type="datetime-local" class="form-control form-control-sm shadow-none" name="expected_at" id="inputExpectedAt"
                     value="{{ incident.expected_at|date:'Y-m-d\TH:i' }}" style="font-size: 11px;">
+                <div id="errorExpectedAt" class="invalid-feedback" style="font-size: 9px;">A previsão deve ser uma data futura.</div>
             </div>
         </div>
 
@@ -83,6 +84,21 @@
                 Técnica</label>
             <textarea class="form-control form-control-sm shadow-none font-monospace" name="technical_note" rows="3"
                 placeholder="Descreva as ações realizadas..." style="font-size: 11px; resize: none;"></textarea>
+        </div>
+
+        <!-- [NOVO] Seção de Pausa (Visível se 'Pausado' selecionado) -->
+        <div id="pausaContainer" class="border rounded mb-1 d-none" style="background-color: rgba(111, 66, 193, 0.1);">
+            <div class="p-2 border-bottom">
+                <span style="font-size: 10px; font-weight: bold; color: var(--text-main);">
+                    <i class="bi bi-pause-circle-fill me-2" style="color: #6f42c1;"></i> Previsão de Despausa
+                </span>
+            </div>
+            <div class="p-2">
+                <label class="form-label text-muted mb-1" style="font-size: 9px;">Retomar em (Data/Hora)</label>
+                <input type="datetime-local" class="form-control form-control-sm shadow-none" name="stopped_at" 
+                       id="inputStoppedAt" value="{{ incident.stopped_at|date:'Y-m-d\TH:i' }}" style="font-size: 11px;">
+                <div class="invalid-feedback" style="font-size: 9px;">A data deve ser futura.</div>
+            </div>
         </div>
 
         <!-- [NOVO] Seção de Escalonamento (Visível se 'Escalonado' selecionado) -->
@@ -206,12 +222,78 @@
             } else {
                 if (containerEscalonamento) containerEscalonamento.classList.add('d-none');
             }
+
+            // 3. Pausado (stopped_at)
+            const containerPausa = document.getElementById('pausaContainer');
+            const inputStoppedAt = document.getElementById('inputStoppedAt');
+            if (statusTexto === 'pausado') {
+                if (containerPausa) containerPausa.classList.remove('d-none');
+                if (inputStoppedAt) inputStoppedAt.setAttribute('required', 'required');
+            } else {
+                if (containerPausa) containerPausa.classList.add('d-none');
+                if (inputStoppedAt) {
+                    inputStoppedAt.removeAttribute('required');
+                    inputStoppedAt.value = '';
+                }
+            }
         }
+
+        // Validação de Data Futura
+        document.getElementById('inputStoppedAt')?.addEventListener('change', function() {
+            const now = new Date();
+            const selected = new Date(this.value);
+            if (selected <= now) {
+                this.setCustomValidity('A data deve ser futura');
+                this.classList.add('is-invalid');
+            } else {
+                this.setCustomValidity('');
+                this.classList.remove('is-invalid');
+            }
+        });
+
+        // Validação de Data Futura (Previsão ETR)
+        const inputExpectedAt = document.getElementById('inputExpectedAt');
+        inputExpectedAt?.addEventListener('change', function() {
+            const now = new Date();
+            const selected = new Date(this.value);
+            if (this.value && selected <= now) {
+                this.setCustomValidity('A data deve ser futura');
+                this.classList.add('is-invalid');
+            } else {
+                this.setCustomValidity('');
+                this.classList.remove('is-invalid');
+            }
+        });
+
+        // Lógica de Afetação vs Previsão
+        function verificarAfetacao() {
+            const radioAtivo = document.getElementById('impactoAtivo');
+            const inputETR = document.getElementById('inputExpectedAt');
+            if (!radioAtivo || !inputETR) return;
+
+            if (radioAtivo.checked) {
+                inputETR.removeAttribute('disabled');
+                inputETR.setAttribute('required', 'required');
+                inputETR.parentElement.querySelector('label').innerHTML = 'Previsão (ETR) <span class="text-danger">*</span>';
+            } else {
+                inputETR.setAttribute('disabled', 'disabled');
+                inputETR.removeAttribute('required');
+                inputETR.value = '';
+                inputETR.classList.remove('is-invalid');
+                inputETR.parentElement.querySelector('label').innerHTML = 'Previsão (ETR)';
+            }
+        }
+
+        document.getElementsByName('is_impact_active').forEach(radio => {
+            radio.addEventListener('change', verificarAfetacao);
+        });
 
         if (selectStatus) {
             selectStatus.addEventListener('change', verificarStatus);
-            verificarStatus(); // Executa na carga inicial para garantir o estado correto
+            verificarStatus(); 
         }
+
+        verificarAfetacao(); // Inicializa na carga
     })();
 </script>
 

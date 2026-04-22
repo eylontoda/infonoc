@@ -233,6 +233,7 @@ async def atualizar_incidente_ajax(request, protocolo):
                 expected_at = request.POST.get('expected_at')
                 is_impact_active = request.POST.get('is_impact_active') == 'True'
                 comment_text = request.POST.get('technical_note', '').strip()
+                stopped_at = request.POST.get('stopped_at')
                 
                 new_status = Status.objects.filter(id=status_id).first()
                 new_impact_level = ImpactLevel.objects.filter(id=impact_level_id).first() if impact_level_id else None
@@ -248,14 +249,31 @@ async def atualizar_incidente_ajax(request, protocolo):
                 
                 new_expected_at = parse_datetime(expected_at) if expected_at else None
                 if new_expected_at:
-                    # Se a data vier sem fuso (do formulário HTML), torna ela "ciente" do fuso do sistema
                     if timezone.is_naive(new_expected_at):
                         new_expected_at = timezone.make_aware(new_expected_at)
-                    
-                    # Compara ignorando segundos/microssegundos para evitar falso positivo
-                    curr_exp = incident.expected_at.replace(second=0, microsecond=0) if incident.expected_at else None
-                    if curr_exp != new_expected_at.replace(second=0, microsecond=0):
-                        detected_slugs.append('expected_at')
+
+                # [NOVAS REGRAS DE INTEGRIDADE: AFETAÇÃO VS PREVISÃO]
+                if is_impact_active:
+                    # 1. Com afetação: Obrigatório e Futuro
+                    if not new_expected_at:
+                        response = HttpResponse(status=200)
+                        response['HX-Trigger'] = json.dumps({"erroValidacao": "Para chamados 'Com afetação', a previsão (ETR) é obrigatória."})
+                        response['HX-Reswap'] = 'none'
+                        return response
+                    if new_expected_at <= now:
+                        response = HttpResponse(status=200)
+                        response['HX-Trigger'] = json.dumps({"erroValidacao": "A previsão (ETR) deve ser uma data futura."})
+                        response['HX-Reswap'] = 'none'
+                        return response
+                else:
+                    # 2. Sem afetação: Limpa a previsão automaticamente
+                    new_expected_at = None
+
+                # Detectar Mudanças de Previsão após as regras acima
+                curr_exp = incident.expected_at.replace(second=0, microsecond=0) if incident.expected_at else None
+                final_exp = new_expected_at.replace(second=0, microsecond=0) if new_expected_at else None
+                if curr_exp != final_exp:
+                    detected_slugs.append('expected_at')
 
                 if new_impact_level and incident.impact_level_id != new_impact_level.id:
                     detected_slugs.append('impact_level')
@@ -263,16 +281,30 @@ async def atualizar_incidente_ajax(request, protocolo):
                 if new_impact_type and incident.impact_type_id != new_impact_type.id:
                     detected_slugs.append('impact_type')
 
+                new_stopped_at = parse_datetime(stopped_at) if stopped_at else None
+                if new_stopped_at:
+                    if timezone.is_naive(new_stopped_at):
+                        new_stopped_at = timezone.make_aware(new_stopped_at)
+                    
+                    # Validação de data futura se for Pausado
+                    if new_status and new_status.name.lower() == 'pausado' and new_stopped_at <= now:
+                        response = HttpResponse(status=200)
+                        response['HX-Trigger'] = json.dumps({"erroValidacao": "A previsão de despausa deve ser uma data futura."})
+                        response['HX-Reswap'] = 'none'
+                        return response
+
+                    curr_stop = incident.stopped_at.replace(second=0, microsecond=0) if incident.stopped_at else None
+                    if curr_stop != new_stopped_at.replace(second=0, microsecond=0):
+                        detected_slugs.append('stopped_at')
+
                 # --- [BLOQUEIO] Verificação de Alterações ---
                 # Comparamos cada campo para garantir que houve mudança real
                 status_mudou = new_status and incident.status_id != new_status.id
                 impacto_mudou = incident.is_impact_active != is_impact_active
                 previsao_mudou = False
-                if new_expected_at:
-                    curr_exp = incident.expected_at.replace(second=0, microsecond=0) if incident.expected_at else None
-                    if curr_exp != new_expected_at.replace(second=0, microsecond=0):
-                        previsao_mudou = True
-                elif incident.expected_at is not None:
+                curr_exp = incident.expected_at.replace(second=0, microsecond=0) if incident.expected_at else None
+                final_exp = new_expected_at.replace(second=0, microsecond=0) if new_expected_at else None
+                if curr_exp != final_exp:
                     previsao_mudou = True
 
                 impact_level_mudou = new_impact_level and incident.impact_level_id != new_impact_level.id
@@ -284,7 +316,15 @@ async def atualizar_incidente_ajax(request, protocolo):
                 if rfo_text and rfo_text != (incident.rfo or ''): outros_campos_mudaram = True
                 if root_cause_id and incident.root_cause_id != (str(incident.root_cause_id) if incident.root_cause_id else ''): outros_campos_mudaram = True
 
-                has_changes = status_mudou or impacto_mudou or previsao_mudou or impact_level_mudou or impact_type_mudou or outros_campos_mudaram
+                stopped_at_mudou = False
+                if new_stopped_at:
+                    curr_stop = incident.stopped_at.replace(second=0, microsecond=0) if incident.stopped_at else None
+                    if curr_stop != new_stopped_at.replace(second=0, microsecond=0):
+                        stopped_at_mudou = True
+                elif incident.stopped_at is not None:
+                    stopped_at_mudou = True
+
+                has_changes = status_mudou or impacto_mudou or previsao_mudou or impact_level_mudou or impact_type_mudou or outros_campos_mudaram or stopped_at_mudou
 
                 if not has_changes and not comment_text:
                     response = HttpResponse(status=200) 
@@ -305,6 +345,7 @@ async def atualizar_incidente_ajax(request, protocolo):
                             'expected_at': 'previsão',
                             'impact_level': 'nível de impacto',
                             'impact_type': 'tipo de impacto',
+                            'stopped_at': 'previsão de despausa',
                             'status': 'status'
                         }
                         readable_changes = [traducoes.get(s, s.replace('_', ' ')) for s in changes]
@@ -323,6 +364,7 @@ async def atualizar_incidente_ajax(request, protocolo):
                     incident.impact_level = new_impact_level or incident.impact_level
                     incident.impact_type = new_impact_type or incident.impact_type
                     incident.expected_at = new_expected_at or incident.expected_at
+                    incident.stopped_at = new_stopped_at or incident.stopped_at
                     incident.is_impact_active = is_impact_active
                     incident.last_history_update_at = now
                     
@@ -358,6 +400,7 @@ async def atualizar_incidente_ajax(request, protocolo):
                         impact_level=incident.impact_level,
                         impact_type=incident.impact_type,
                         expected_at=incident.expected_at,
+                        stopped_at=incident.stopped_at,
                         time_elapsed=time_elapsed
                     )
 
@@ -691,8 +734,28 @@ async def api_incidents_list(request):
     
     @sync_to_async
     def get_data():
-        # [OTIMIZAÇÃO] Adicionado .only() para evitar carregar campos pesados (RFO, notas longas) 
-        # que não são exibidos na listagem principal.
+        hoje = timezone.now()
+
+        # 1. Retomada Automática (Processa antes de montar a lista)
+        resumable = Incident.objects.filter(status__name='Pausado', stopped_at__lte=hoje)
+        if resumable.exists():
+            try:
+                status_andamento = Status.objects.get(name='Em andamento')
+                for r_inc in resumable:
+                    r_inc.status = status_andamento
+                    r_inc.last_history_update_at = hoje
+                    r_inc.save()
+                    UpdateIncident.objects.create(
+                        incident=r_inc,
+                        created_by=None, 
+                        status=status_andamento,
+                        is_impact_active=r_inc.is_impact_active,
+                        comment="[SISTEMA] Chamado retomado automaticamente após fim da pausa programada.",
+                        time_elapsed=0
+                    )
+            except Status.DoesNotExist:
+                pass
+
         incidents = Incident.objects.exclude(
             status__name__iexact='Excluido'
         ).select_related(
@@ -701,11 +764,9 @@ async def api_incidents_list(request):
             'id', 'mk_protocol', 'occured_at', 'description', 'status__name', 
             'incident_type__name', 'is_impact_active', 'last_history_update_at',
             'site__name', 'site__facility', 'circuit__name', 'device__name',
-            'assigned_to__username'
+            'assigned_to__username', 'stopped_at'
         ).order_by('-occured_at')
         
-        data_list = []
-        hoje = timezone.now()
         data_list = []
         for inc in incidents:
             dt_occured_local = timezone.localtime(inc.occured_at) if inc.occured_at else None
@@ -714,7 +775,23 @@ async def api_incidents_list(request):
             # Se normalizado, consideramos 0 para não poluir ou atrapalhar a ordenação
             is_normalizado = inc.status.name.lower() == 'normalizado'
             
-            if is_normalizado:
+            is_pausado = inc.status.name.lower() == 'pausado'
+            
+            paused_minutes = 0
+            paused_percent = 0
+            if is_pausado and inc.stopped_at:
+                # Previsão de despausa no futuro
+                last_update = inc.last_history_update_at or inc.occured_at
+                total_pause_duration = (inc.stopped_at - last_update).total_seconds()
+                remaining_pause = (inc.stopped_at - hoje).total_seconds()
+                
+                paused_minutes = int(remaining_pause / 60) if remaining_pause > 0 else 0
+                if total_pause_duration > 0:
+                    # Progresso reduzindo (conforme tempo se aproxima, a barra diminui)
+                    paused_percent = max(0, min(100, (remaining_pause / total_pause_duration) * 100))
+                
+                inactivity_minutes = 0 # Não conta inatividade se pausado
+            elif is_normalizado:
                 inactivity_minutes = 0
             else:
                 last_update = inc.last_history_update_at or inc.occured_at
@@ -773,6 +850,9 @@ async def api_incidents_list(request):
                 'status_name': inc.status.name if inc.status else "Desconhecido",
                 'is_impact_active': inc.is_impact_active,
                 'inactivity_minutes': inactivity_minutes,
+                'is_paused': is_pausado,
+                'paused_minutes': paused_minutes,
+                'paused_percent': paused_percent,
                 'assigned_to': inc.assigned_to.username if inc.assigned_to else "Livre",
                 'progress': progress_data,
             })
@@ -857,3 +937,15 @@ async def excluir_incidente_ajax(request, protocolo):
 
     success = await do_delete()
     return JsonResponse({'success': success})
+async def novo_incidente_ajax(request):
+    """
+    Retorna o formulário de abertura de novo incidente para o offcanvas.
+    """
+    try:
+        user = await request.auser()
+        if not user.is_authenticated:
+            return HttpResponse("<div class='alert alert-warning m-3'>Sessão expirada.</div>", status=401)
+
+        return HttpResponse("<div class='alert alert-info m-3'>Interface de Abertura de Chamado em desenvolvimento.</div>")
+    except Exception as e:
+        return HttpResponse(f"<div class='alert alert-danger m-3'>Erro: {str(e)}</div>")
