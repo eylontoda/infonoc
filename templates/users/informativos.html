@@ -10,20 +10,71 @@
 
 <style>
     /* Estilos dos Balões de Status */
-    .status-card { padding: 0.6rem 1rem !important; border-radius: 12px; color: white; border: none; transition: transform 0.2s ease; }
-    .status-card-content { display: flex; align-items: center; gap: 0.75rem; }
-    .status-icon { width: 34px; height: 34px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
-    .status-info h3 { font-size: 1.4rem; font-weight: 700; margin: 0; line-height: 1; min-height: 1.3rem; transition: opacity 0.2s; }
-    .status-info span { font-size: 0.75rem; text-transform: uppercase; font-weight: 600; opacity: 0.9; }
-    
-    .active-card { background: linear-gradient(135deg, #60c4b0 0%, #006b72 100%); }
-    .resolved-card { background: linear-gradient(135deg, #9ac73f 0%, #7da233 100%); }
-    .alert-card { background: linear-gradient(135deg, #60c4b0 0%, #006b72 100%); }
-    .critical-card { background: linear-gradient(135deg, #f04f47 0%, #d13a33 100%); }
+    .status-card {
+        padding: 0.6rem 1rem !important;
+        border-radius: 12px;
+        color: white;
+        border: none;
+        transition: transform 0.2s ease;
+    }
+
+    .status-card-content {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .status-icon {
+        width: 34px;
+        height: 34px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+    }
+
+    .status-info h3 {
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin: 0;
+        line-height: 1;
+        min-height: 1.3rem;
+        transition: opacity 0.2s;
+    }
+
+    .status-info span {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        font-weight: 600;
+        opacity: 0.9;
+    }
+
+    .active-card {
+        background: linear-gradient(135deg, #60c4b0 0%, #006b72 100%);
+    }
+
+    .resolved-card {
+        background: linear-gradient(135deg, #9ac73f 0%, #7da233 100%);
+    }
+
+    .alert-card {
+        background: linear-gradient(135deg, #60c4b0 0%, #006b72 100%);
+    }
+
+    .critical-card {
+        background: linear-gradient(135deg, #f04f47 0%, #d13a33 100%);
+    }
 
     /* Contentores de Tabela e Filtros */
-    .table-container { background: var(--bg-card); border-radius: 16px; padding: 1rem; border: 1px solid var(--border-color); }
-    
+    .table-container {
+        background: var(--bg-card);
+        border-radius: 16px;
+        padding: 1rem;
+        border: 1px solid var(--border-color);
+    }
+
     #tabelaInformativos {
         table-layout: fixed !important;
         word-wrap: break-word;
@@ -40,19 +91,23 @@
     }
 
     /* [AJUSTE] Cabeçalhos centralizados */
-    table.dataTable thead th { 
-        border-bottom: 2px solid var(--primary-color) !important; 
-        color: var(--text-main) !important; 
-        background-color: transparent !important; 
+    table.dataTable thead th {
+        border-bottom: 2px solid var(--primary-color) !important;
+        color: var(--text-main) !important;
+        background-color: transparent !important;
         font-weight: 600;
         font-size: 11px !important;
         padding: 8px !important;
-        text-align: center !important; 
+        text-align: center !important;
     }
 
-    .filter-row th { padding: 4px 8px !important; background-color: rgba(0,0,0,0.02) !important; }
-    
-    .column-filter, .column-filter-select {
+    .filter-row th {
+        padding: 4px 8px !important;
+        background-color: rgba(0, 0, 0, 0.02) !important;
+    }
+
+    .column-filter,
+    .column-filter-select {
         width: 100%;
         font-size: 10px !important;
         padding: 2px 5px !important;
@@ -62,8 +117,11 @@
         color: var(--text-main);
         height: 22px;
     }
-    [data-bs-theme="dark"] .column-filter, 
-    [data-bs-theme="dark"] .column-filter-select { background-color: #1b2a3a; }
+
+    [data-bs-theme="dark"] .column-filter,
+    [data-bs-theme="dark"] .column-filter-select {
+        background-color: #1b2a3a;
+    }
 
     /* Controlos DataTables */
     .dataTables_wrapper .dataTables_info,
@@ -80,13 +138,14 @@
         padding: 4px 8px !important;
         height: 26px !important;
         border-radius: 6px !important;
-        border: 2px solid #60c4b0 !important; 
+        border: 2px solid #60c4b0 !important;
         background-color: var(--bg-card) !important;
         color: var(--text-main) !important;
         display: inline-block !important;
         width: 180px !important;
         transition: box-shadow 0.2s;
     }
+
     .dataTables_filter input:focus {
         box-shadow: 0 0 0 0.2rem rgba(0, 136, 145, 0.25);
         outline: none;
@@ -103,12 +162,36 @@
         margin: 0 5px !important;
         width: 60px !important;
     }
-    
-    [data-bs-theme="dark"] .page-link { background-color: var(--bg-card); border-color: var(--border-color); color: var(--text-main); font-size: 11px; }
-    [data-bs-theme="dark"] .page-item.active .page-link { background-color: var(--primary-color); border-color: var(--primary-color); color: white; }
-    
-    .filter-box { background: var(--bg-card); border-radius: 12px; padding: 10px; margin-bottom: 1rem; border: 1px solid var(--border-color); display: inline-flex; align-items: center; gap: 15px; }
-    .btn-check:checked + .btn-outline-primary { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
+
+    [data-bs-theme="dark"] .page-link {
+        background-color: var(--bg-card);
+        border-color: var(--border-color);
+        color: var(--text-main);
+        font-size: 11px;
+    }
+
+    [data-bs-theme="dark"] .page-item.active .page-link {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        color: white;
+    }
+
+    .filter-box {
+        background: var(--bg-card);
+        border-radius: 12px;
+        padding: 10px;
+        margin-bottom: 1rem;
+        border: 1px solid var(--border-color);
+        display: inline-flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .btn-check:checked+.btn-outline-primary {
+        background-color: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
 
     /* Botões de Ação na Tabela */
     .btn-table-action {
@@ -117,12 +200,34 @@
         transition: all 0.2s ease;
     }
 
-    .btn-action-view { background-color: #0d6efd !important; }
+    .btn-action-view {
+        background-color: #0d6efd !important;
+    }
+
     /* [AJUSTE] Estilo Cinza Escuro com ícone branco e borda branca para manter o alinhamento da grelha (Tema Light) */
-    .btn-action-add { background-color: #475569 !important; color: #ffffff !important; border-color: white !important; }
-    .btn-action-assign { background-color: #198754 !important; }
-    .btn-action-edit { background-color: #ffc107 !important; color: #000 !important; }
-    .btn-action-delete { background-color: #dc3545 !important; }
+    .btn-action-add {
+        background-color: #475569 !important;
+        color: #ffffff !important;
+        border-color: white !important;
+    }
+
+    .btn-action-assign {
+        background-color: #198754 !important;
+    }
+
+    .btn-action-release {
+        background-color: #fd7e14 !important;
+        color: #fff !important;
+    }
+
+    .btn-action-edit {
+        background-color: #ffc107 !important;
+        color: #000 !important;
+    }
+
+    .btn-action-delete {
+        background-color: #dc3545 !important;
+    }
 
     .btn-table-action:hover {
         filter: brightness(0.9);
@@ -134,32 +239,66 @@
         background-color: transparent !important;
         border-width: 1px !important;
     }
-    [data-bs-theme="dark"] .btn-action-view { border-color: #0d6efd !important; color: #0d6efd !important; }
-    [data-bs-theme="dark"] .btn-action-add { border-color: #94a3b8 !important; color: #cbd5e1 !important; }
-    [data-bs-theme="dark"] .btn-action-assign { border-color: #198754 !important; color: #198754 !important; }
-    [data-bs-theme="dark"] .btn-action-edit { border-color: #ffc107 !important; color: #ffc107 !important; }
-    [data-bs-theme="dark"] .btn-action-delete { border-color: #dc3545 !important; color: #dc3545 !important; }
+
+    [data-bs-theme="dark"] .btn-action-view {
+        border-color: #0d6efd !important;
+        color: #0d6efd !important;
+    }
+
+    [data-bs-theme="dark"] .btn-action-add {
+        border-color: #94a3b8 !important;
+        color: #cbd5e1 !important;
+    }
+
+    [data-bs-theme="dark"] .btn-action-assign {
+        border-color: #198754 !important;
+        color: #198754 !important;
+    }
+
+    [data-bs-theme="dark"] .btn-action-release {
+        border-color: #fd7e14 !important;
+        color: #fd7e14 !important;
+    }
+
+    [data-bs-theme="dark"] .btn-action-edit {
+        border-color: #ffc107 !important;
+        color: #ffc107 !important;
+    }
+
+    [data-bs-theme="dark"] .btn-action-delete {
+        border-color: #dc3545 !important;
+        color: #dc3545 !important;
+    }
 
     [data-bs-theme="dark"] .btn-table-action:hover {
-        background-color: rgba(255,255,255,0.05) !important;
+        background-color: rgba(255, 255, 255, 0.05) !important;
     }
 
     /* Offcanvas */
-    [data-bs-theme="dark"] .offcanvas { background-color: #121e2d; color: var(--text-main); }
-    [data-bs-theme="dark"] .offcanvas-header { border-bottom-color: var(--border-color) !important; }
+    [data-bs-theme="dark"] .offcanvas {
+        background-color: #121e2d;
+        color: var(--text-main);
+    }
+
+    [data-bs-theme="dark"] .offcanvas-header {
+        border-bottom-color: var(--border-color) !important;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid animate-slide-in">
-    
+
     <!-- Balões de Status -->
     <div class="row g-2 mb-3">
         <div class="col-md-3">
             <div class="status-card active-card">
                 <div class="status-card-content">
                     <div class="status-icon"><i class="bi bi-broadcast-pin"></i></div>
-                    <div class="status-info"><h3 id="count-em-andamento"><span class="spinner-border spinner-border-sm"></span></h3><span>Em andamento</span></div>
+                    <div class="status-info">
+                        <h3 id="count-em-andamento"><span class="spinner-border spinner-border-sm"></span></h3><span>Em
+                            andamento</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -167,7 +306,10 @@
             <div class="status-card resolved-card">
                 <div class="status-card-content">
                     <div class="status-icon"><i class="bi bi-check-circle"></i></div>
-                    <div class="status-info"><h3 id="count-normalizado"><span class="spinner-border spinner-border-sm"></span></h3><span>Normalizados Hoje</span></div>
+                    <div class="status-info">
+                        <h3 id="count-normalizado"><span class="spinner-border spinner-border-sm"></span></h3>
+                        <span>Normalizados Hoje</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -175,7 +317,10 @@
             <div class="status-card alert-card">
                 <div class="status-card-content">
                     <div class="status-icon"><i class="bi bi-clock-history"></i></div>
-                    <div class="status-info"><h3 id="count-sem-afetacao"><span class="spinner-border spinner-border-sm"></span></h3><span>Sem Afetação</span></div>
+                    <div class="status-info">
+                        <h3 id="count-sem-afetacao"><span class="spinner-border spinner-border-sm"></span></h3><span>Sem
+                            Afetação</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -183,7 +328,10 @@
             <div class="status-card critical-card">
                 <div class="status-card-content">
                     <div class="status-icon"><i class="bi bi-exclamation-triangle"></i></div>
-                    <div class="status-info"><h3 id="count-com-afetacao"><span class="spinner-border spinner-border-sm"></span></h3><span>Com Afetação</span></div>
+                    <div class="status-info">
+                        <h3 id="count-com-afetacao"><span class="spinner-border spinner-border-sm"></span></h3><span>Com
+                            Afetação</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -191,14 +339,15 @@
 
     <!-- Filtro de Visão (Controla Escalonamento) -->
     <div class="filter-box shadow-sm mb-3">
-        <span class="fw-bold text-muted ps-2" style="font-size: 10px;"><i class="bi bi-filter-left me-1"></i> Visualização:</span>
+        <span class="fw-bold text-muted ps-2" style="font-size: 10px;"><i class="bi bi-filter-left me-1"></i>
+            Visualização:</span>
         <div class="btn-group btn-group-sm" role="group">
             <input type="radio" class="btn-check" name="filterType" id="btnTodos">
             <label class="btn btn-outline-primary px-3" for="btnTodos" style="font-size: 10px;">Todos</label>
-            
+
             <input type="radio" class="btn-check" name="filterType" id="btnRegular" checked>
             <label class="btn btn-outline-primary px-3" for="btnRegular" style="font-size: 10px;">Regular</label>
-            
+
             <input type="radio" class="btn-check" name="filterType" id="btnEscalonado">
             <label class="btn btn-outline-primary px-3" for="btnEscalonado" style="font-size: 10px;">Escalonado</label>
         </div>
@@ -211,7 +360,7 @@
                 <tr>
                     <th>Protocolo</th>
                     <th>Inicio</th>
-                    <th>Designador</th> 
+                    <th>Designador</th>
                     <th>Descrição</th>
                     <th>Inatividade</th>
                     <th>Status</th>
@@ -220,7 +369,15 @@
                     <th class="text-center">Ações</th>
                 </tr>
                 <tr class="filter-row">
-                    <th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -228,9 +385,11 @@
     </div>
 
     <!-- 1. Offcanvas de Visualização (Olho) -->
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasDetalhes" aria-labelledby="offcanvasDetalhesLabel" style="width: 600px;">
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasDetalhes" aria-labelledby="offcanvasDetalhesLabel"
+        style="width: 600px;">
         <div class="offcanvas-header border-bottom">
-            <h5 class="offcanvas-title fw-bold" id="offcanvasDetalhesLabel"><i class="bi bi-info-circle-fill me-2"></i>Detalhes do Chamado</h5>
+            <h5 class="offcanvas-title fw-bold" id="offcanvasDetalhesLabel"><i
+                    class="bi bi-info-circle-fill me-2"></i>Detalhes do Chamado</h5>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div class="offcanvas-body" id="conteudoDetalhes">
@@ -242,9 +401,11 @@
     </div>
 
     <!-- 2. Offcanvas de Atualização (Plus) -->
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasAtualizacao" aria-labelledby="offcanvasAtualizacaoLabel" style="width: 600px;">
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasAtualizacao"
+        aria-labelledby="offcanvasAtualizacaoLabel" style="width: 600px;">
         <div class="offcanvas-header border-bottom">
-            <h5 class="offcanvas-title fw-bold" id="offcanvasAtualizacaoLabel"><i class="bi bi-journal-plus me-2 text-primary"></i>Inserir Atualização</h5>
+            <h5 class="offcanvas-title fw-bold" id="offcanvasAtualizacaoLabel"><i
+                    class="bi bi-journal-plus me-2 text-primary"></i>Inserir Atualização</h5>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div class="offcanvas-body" id="conteudoAtualizacao">
@@ -256,9 +417,11 @@
     </div>
 
     <!-- 3. Offcanvas de Edição (Pencil) [Preparação Futura] -->
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasEditar" aria-labelledby="offcanvasEditarLabel" style="width: 600px;">
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasEditar" aria-labelledby="offcanvasEditarLabel"
+        style="width: 600px;">
         <div class="offcanvas-header border-bottom">
-            <h5 class="offcanvas-title fw-bold" id="offcanvasEditarLabel"><i class="bi bi-pencil-square me-2 text-warning"></i>Editar Chamado</h5>
+            <h5 class="offcanvas-title fw-bold" id="offcanvasEditarLabel"><i
+                    class="bi bi-pencil-square me-2 text-warning"></i>Editar Chamado</h5>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div class="offcanvas-body" id="conteudoEditar">
@@ -281,15 +444,18 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-    $(document).ready(function() {
+    // Injeta o usuário atual para lógica condicional no frontend
+    const CURRENT_USER = "{{ request.user.username }}";
+
+    $(document).ready(function () {
 
         /**
          * LÓGICA DE FILTRAGEM CUSTOMIZADA (Regular vs Escalonado)
          */
-        $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
             const filterType = $('input[name="filterType"]:checked').attr('id');
             const statusCol = data[5] || ''; // Coluna 5 é o Status
-            
+
             if (filterType === 'btnRegular') {
                 if (statusCol.includes('Escalonado')) return false;
             } else if (filterType === 'btnEscalonado') {
@@ -299,15 +465,19 @@
         });
 
         // Configuração de Inputs do Cabeçalho
-        $('#tabelaInformativos thead tr.filter-row th').each(function(i) {
+        $('#tabelaInformativos thead tr.filter-row th').each(function (i) {
             const title = $('#tabelaInformativos thead tr:eq(0) th').eq(i).text();
             if (['Protocolo', 'Inicio', 'Designador', 'Descrição'].includes(title.trim())) {
                 $(this).html(`<input type="text" class="column-filter" placeholder="🔍 ${title}" />`);
-            } 
-            else if (['Status', 'Impacto', 'Resgate'].includes(title.trim())) {
+            }
+            else if (['Status', 'Impacto', 'Resgate', 'Inatividade'].includes(title.trim())) {
                 let options = '<option value="">Todos</option>';
                 if (title.trim() === 'Status') {
                     options += '<option value="NOT_NORMALIZADO">Não Normalizados</option>';
+                }
+                else if (title.trim() === 'Inatividade') {
+                    options += '<option value="INATIVO">Atrasados</option>';
+                    options += '<option value="ATIVO">Recentes</option>';
                 }
                 $(this).html(`<select class="column-filter-select">${options}</select>`);
             }
@@ -321,7 +491,7 @@
             autoWidth: false,
             order: [[1, 'desc']], // Padrão: Mais recentes primeiro
             orderCellsTop: true,
-            language: { 
+            language: {
                 url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/pt-BR.json',
                 search: "Pesquisar geral:",
                 lengthMenu: "Mostrar _MENU_ registros"
@@ -333,76 +503,66 @@
                 dataSrc: 'incidents'
             },
             columns: [
-                { 
+                {
                     data: 'protocol',
                     className: 'text-center align-middle',
                     defaultContent: 'S/P',
-                    width: '70px' 
+                    width: '70px'
                 },
-                { 
+                {
                     data: 'timestamp',
                     className: 'text-center align-middle',
                     defaultContent: 'N/D',
                     width: '95px',
                     render: (data, type, row) => type === 'sort' ? (row.timestamp_iso || 0) : (data || 'N/D')
                 },
-                { 
+                {
                     data: 'designator',
                     className: 'align-middle',
                     defaultContent: 'N/D',
                     width: '130px',
                     render: (data) => `<div class="fw-bold" style="width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${data || ''}">${data || 'N/D'}</div>`
                 },
-                { 
+                {
                     data: 'description',
                     className: 'align-middle',
                     defaultContent: 'Sem descrição',
                     render: (data) => `<div class="text-truncate" style="width: 100%;" title="${data || ''}">${data || ''}</div>`
                 },
-                { 
-                    data: 'updated_at_iso',
+                {
+                    data: 'inactivity_minutes',
                     className: 'align-middle',
-                    defaultContent: '',
+                    type: 'num',
+                    defaultContent: 0,
                     width: '100px',
                     render: (data, type, row) => {
-                        if (!data) return type === 'sort' ? 0 : '<span class="text-muted">N/D</span>';
-                        
-                        const isNormalized = row.status_name === 'Normalizado';
-                        const referenceDate = isNormalized ? new Date(data) : new Date();
-                        const diffMin = Math.floor((referenceDate - new Date(data)) / 60000);
-                        
+                        const diffMin = parseInt(data) || 0;
                         if (type === 'sort') return diffMin;
+
+                        const isNormalized = row.status_name === 'Normalizado';
+                        if (isNormalized) return '';
 
                         const d = Math.floor(diffMin / 1440);
                         const h = Math.floor((diffMin % 1440) / 60);
                         const m = diffMin % 60;
-                        
+
                         let timeStr = "";
-                        if (isNormalized) {
-                            timeStr = ""; 
-                        } else {
-                            if (d > 0) timeStr += `${d}d `;
-                            if (h > 0 || d > 0) timeStr += `${h}h `;
-                            timeStr += `${m}min`;
-                        }
+                        if (d > 0) timeStr += `${d}d `;
+                        if (h > 0 || d > 0) timeStr += `${h}h `;
+                        timeStr += `${m}min`;
 
                         let color = "#60c4b0";
                         let barClass = "bg-primary";
                         let maxVal = row.is_impact_active ? 60 : 180;
 
-                        if (isNormalized) {
-                            color = "#6c757d"; 
-                            barClass = "bg-secondary";
-                        } else if (row.is_impact_active) {
-                            if (diffMin >= 60) { color = "var(--bs-danger)"; barClass = "bg-danger"; } 
+                        if (row.is_impact_active) {
+                            if (diffMin >= 60) { color = "var(--bs-danger)"; barClass = "bg-danger"; }
                             else if (diffMin >= 45) { color = "#ffc107"; barClass = "bg-warning"; }
                         } else {
-                            if (diffMin >= 180) { color = "var(--bs-danger)"; barClass = "bg-danger"; } 
+                            if (diffMin >= 180) { color = "var(--bs-danger)"; barClass = "bg-danger"; }
                             else if (diffMin >= 120) { color = "#ffc107"; barClass = "bg-warning"; }
                         }
                         const progress = Math.min((diffMin / maxVal) * 100, 100);
-
-                        if (isNormalized) return '';
 
                         return `
                             <div class="d-flex flex-column" style="gap: 2px; width: 100%;">
@@ -413,7 +573,7 @@
                             </div>`;
                     }
                 },
-                { 
+                {
                     data: 'status_name',
                     className: 'text-center align-middle',
                     defaultContent: 'Desconhecido',
@@ -431,11 +591,11 @@
                         return data || '';
                     }
                 },
-                { 
+                {
                     data: 'is_impact_active',
                     className: 'text-center align-middle',
                     defaultContent: false,
-                    width: '95px', 
+                    width: '95px',
                     render: (data, type) => {
                         let text = data ? 'Com Afetação' : 'Sem Afetação';
                         if (type === 'display') {
@@ -448,19 +608,19 @@
                         return text;
                     }
                 },
-                { 
+                {
                     data: 'assigned_to',
                     className: 'text-center align-middle',
                     defaultContent: 'Livre',
                     width: '80px',
                     render: (data) => `<span class="fw-bold text-muted" style="font-size: 10px;">${data}</span>`
                 },
-                { 
+                {
                     data: null,
                     orderable: false,
                     className: 'text-center align-middle',
                     defaultContent: '',
-                    width: '160px', 
+                    width: '160px',
                     render: (data) => {
                         if (!data) return '';
                         return `
@@ -473,9 +633,15 @@
                                     hx-get="/incidents/atualizar-ajax/${data.protocol}/" hx-target="#conteudoAtualizacao" data-bs-toggle="offcanvas" data-bs-target="#offcanvasAtualizacao" title="Inserir Atualização">
                                 <i class="bi bi-plus-square-fill"></i>
                             </button>
-                            <button class="btn btn-sm btn-table-action btn-action-assign" onclick="informativoManager.assumirResponsabilidade('${data.protocol}')" title="Assumir Responsabilidade">
-                                <i class="bi bi-person-check-fill"></i>
-                            </button>
+                            ${data.assigned_to === CURRENT_USER ? `
+                                <button class="btn btn-sm btn-table-action btn-action-release" onclick="informativoManager.liberarResponsabilidade('${data.protocol}')" title="Liberar Resgate">
+                                    <i class="bi bi-person-dash-fill"></i>
+                                </button>
+                            ` : `
+                                <button class="btn btn-sm btn-table-action btn-action-assign" onclick="informativoManager.assumirResponsabilidade('${data.protocol}')" title="Assumir Responsabilidade">
+                                    <i class="bi bi-person-check-fill"></i>
+                                </button>
+                            `}
                             <button class="btn btn-sm btn-table-action btn-action-edit" 
                                     hx-get="/incidents/editar-ajax/${data.protocol}/" hx-target="#conteudoEditar" data-bs-toggle="offcanvas" data-bs-target="#offcanvasEditar" title="Editar Chamado">
                                 <i class="bi bi-pencil-fill"></i>
@@ -487,24 +653,46 @@
                     }
                 }
             ],
-            initComplete: function() {
+            initComplete: function () {
                 const api = this.api();
 
                 // Popular os Dropdowns do cabeçalho
-                api.columns([5, 6, 7]).every(function() {
+                api.columns([4, 5, 6, 7]).every(function () {
                     const column = this;
                     const select = $('#tabelaInformativos thead tr.filter-row th').eq(column.index()).find('select');
 
                     if (select.length > 0) {
-                        column.cells('', column.index()).render('filter').unique().sort().each(function(d) {
-                            if (d) select.append(`<option value="${d}">${d}</option>`);
-                        });
-                        select.on('change', function() {
+                        // Apenas popula se não for a coluna de Inatividade (que já tem opções fixas)
+                        if (column.index() !== 4) {
+                            column.cells('', column.index()).render('filter').unique().sort().each(function (d) {
+                                if (d) select.append(`<option value="${d}">${d}</option>`);
+                            });
+                        }
+
+                        select.on('change', function () {
                             const val = $(this).val();
+
+                            // Limpa filtros customizados globais ao mudar qualquer select
+                            $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(f => f.name !== 'filterInatividade');
+
                             if (val === 'NOT_NORMALIZADO') {
-                                // Regex negativo: casa com qualquer coisa que NÃO seja exatamente 'Normalizado'
                                 column.search('^(?!Normalizado$).*', true, false).draw();
-                            } else {
+                            }
+                            else if (val === 'INATIVO' || val === 'ATIVO') {
+                                const filterFn = function filterInatividade(settings, data, dataIndex) {
+                                    const row = table.row(dataIndex).data();
+                                    const minutes = parseInt(row.inactivity_minutes) || 0;
+                                    const isImpact = row.is_impact_active;
+                                    const threshold = isImpact ? 60 : 180;
+
+                                    if (val === 'INATIVO') return minutes >= threshold;
+                                    if (val === 'ATIVO') return minutes < threshold;
+                                    return true;
+                                };
+                                $.fn.dataTable.ext.search.push(filterFn);
+                                table.draw();
+                            }
+                            else {
                                 const escapedVal = $.fn.dataTable.util.escapeRegex(val);
                                 column.search(escapedVal ? `^${escapedVal}$` : '', true, false).draw();
                             }
@@ -513,7 +701,7 @@
                 });
 
                 // Carregamento inicial: "Não Normalizados" (Padrão solicitado)
-                const statusColIndex = 5; 
+                const statusColIndex = 5;
                 api.column(statusColIndex).search('^(?!Normalizado$).*', true, false).draw();
                 $('#tabelaInformativos thead tr.filter-row th').eq(statusColIndex).find('select').val('NOT_NORMALIZADO');
             }
@@ -521,7 +709,7 @@
 
         // Implementação Global das Ações (Informativo Manager)
         window.informativoManager = {
-            assumirResponsabilidade: async function(protocolo) {
+            assumirResponsabilidade: async function (protocolo) {
                 const { value: accept } = await Swal.fire({
                     title: 'Resgatar Incidente?',
                     text: `Deseja assumir a responsabilidade pelo protocolo ${protocolo}?`,
@@ -543,6 +731,13 @@
                         if (data.success) {
                             Swal.fire({ title: 'Sucesso!', text: 'Chamado resgatado com sucesso.', icon: 'success', timer: 1500 });
                             table.ajax.reload(null, false);
+
+                            // Sincroniza o offcanvas se estiver aberto para este protocolo
+                            const activeConteudo = document.querySelector('.offcanvas.show [id^="conteudo"]');
+                            if (activeConteudo && activeConteudo.getAttribute('data-protocol') === protocolo) {
+                                const lastUrl = activeConteudo.getAttribute('data-last-url');
+                                if (lastUrl) htmx.ajax('GET', lastUrl, { target: '#' + activeConteudo.id });
+                            }
                         } else {
                             Swal.fire('Erro!', data.error || 'Não foi possível resgatar o chamado.', 'error');
                         }
@@ -552,62 +747,133 @@
                 }
             },
 
-            excluirChamado: async function(protocolo) {
-                Swal.fire({
+            liberarResponsabilidade: async function (protocolo) {
+                const { value: accept } = await Swal.fire({
+                    title: 'Liberar Incidente?',
+                    text: `Deseja remover sua responsabilidade pelo protocolo ${protocolo}?`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#fd7e14',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Sim, liberar!',
+                    cancelButtonText: 'Cancelar'
+                });
+
+                if (accept) {
+                    try {
+                        const response = await fetch(`/incidents/liberar-ajax/${protocolo}/`);
+                        const data = await response.json();
+                        if (data.success) {
+                            table.ajax.reload(null, false);
+                            
+                            // Sincroniza o offcanvas se estiver aberto para este protocolo
+                            const activeConteudo = document.querySelector('.offcanvas.show [id^="conteudo"]');
+                            if (activeConteudo && activeConteudo.getAttribute('data-protocol') === protocolo) {
+                                const lastUrl = activeConteudo.getAttribute('data-last-url');
+                                if (lastUrl) htmx.ajax('GET', lastUrl, { target: '#' + activeConteudo.id });
+                            }
+
+                            Swal.fire({
+                                title: 'Liberado!',
+                                text: 'O incidente agora está livre para outros operadores.',
+                                icon: 'success',
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                        }
+                    } catch (err) {
+                        console.error(err);
+                    }
+                }
+            },
+
+            excluirChamado: async function (protocolo) {
+                const { value: accept } = await Swal.fire({
                     title: 'Atenção!',
-                    text: "Deseja realmente ocultar este chamado? (Status mudará para Excluído)",
+                    text: "Deseja realmente ocultar este chamado? (Status mudará para Excluído e ele não aparecerá mais nesta lista)",
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#dc3545',
                     cancelButtonColor: '#6c757d',
                     confirmButtonText: 'Sim, excluir',
                     cancelButtonText: 'Cancelar'
-                }).then(async (result) => {
-                    if (result.isConfirmed) {
-                        Swal.fire('Info', 'Funcionalidade de exclusão em migração.', 'info');
-                    }
                 });
+
+                if (accept) {
+                    try {
+                        const response = await fetch(`/incidents/excluir-ajax/${protocolo}/`);
+                        const data = await response.json();
+                        if (data.success) {
+                            table.ajax.reload(null, false);
+                            
+                            // Fecha o offcanvas se estiver aberto para este protocolo
+                            const activeOffcanvas = document.querySelector('.offcanvas.show');
+                            const activeConteudo = document.querySelector('.offcanvas.show [id^="conteudo"]');
+                            if (activeOffcanvas && activeConteudo && activeConteudo.getAttribute('data-protocol') === protocolo) {
+                                bootstrap.Offcanvas.getInstance(activeOffcanvas).hide();
+                            }
+
+                            Swal.fire({
+                                title: 'Excluído!',
+                                text: 'O incidente foi marcado como excluído.',
+                                icon: 'success',
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                        } else {
+                            Swal.fire('Erro!', 'Não foi possível excluir o chamado.', 'error');
+                        }
+                    } catch (err) {
+                        console.error(err);
+                    }
+                }
             }
         };
 
         // Recarregar o HTMX na paginação
-        table.on('draw', function() {
+        table.on('draw', function () {
             if (typeof htmx !== 'undefined') {
                 htmx.process(document.querySelector('#tabelaInformativos'));
             }
         });
 
         // Pesquisa nas colunas de input (ao pressionar Enter)
-        table.columns([0, 1, 2, 3]).every(function() {
+        table.columns([0, 1, 2, 3]).every(function () {
             const column = this;
             const input = $('#tabelaInformativos thead tr.filter-row th').eq(column.index()).find('input');
-            input.off('keypress').on('keypress', function(e) {
-                if (e.which == 13) { 
+            input.off('keypress').on('keypress', function (e) {
+                if (e.which == 13) {
                     e.preventDefault();
-                    column.search($(this).val()).draw(); 
+                    column.search($(this).val()).draw();
                 }
             });
         });
 
         // Evento de alteração dos Radio Buttons (Regular/Escalonado)
-        $('input[name="filterType"]').on('change', function() {
-            table.draw(); 
+        $('input[name="filterType"]').on('change', function () {
+            table.draw();
         });
 
         // Limpar todos os filtros (retorna ao estado "Regular" e "Não Normalizados")
-        $(document).on('click', '#btnLimparFiltros', function() {
+        $(document).on('click', '#btnLimparFiltros', function () {
             $('.column-filter').val('');
             $('.column-filter-select').val('');
-            $('#btnRegular').prop('checked', true); 
-            
+            $('#btnRegular').prop('checked', true);
+
             // Limpa as buscas de todas as colunas
             table.columns().search('');
-            
+
+            // Limpa filtros customizados globais
+            $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(f => f.name !== 'filterInatividade');
+
             // Reaplica o filtro padrão de Status
             const statusColIndex = 5;
             table.column(statusColIndex).search('^(?!Normalizado$).*', true, false);
-            $('.column-filter-select').eq(0).val('NOT_NORMALIZADO'); // Coluna 5 é o primeiro select
             
+            // Localiza o select da coluna Status (index 5) e define como "Não Normalizados"
+            // Como temos selects nas colunas 4, 5, 6, 7, o de status é o segundo (index 1 no jQuery)
+            $('.column-filter-select').eq(1).val('NOT_NORMALIZADO');
+
             table.draw();
         });
 
@@ -616,15 +882,38 @@
         setInterval(() => table.ajax.reload(null, false), 30000);
 
         // Disparado quando a View de Atualização retorna o evento "atualizacaoConcluida"
-        document.body.addEventListener("atualizacaoConcluida", function(evt){
+        document.body.addEventListener("atualizacaoConcluida", function (evt) {
             table.ajax.reload(null, false);
+        });
+
+        // Captura o protocolo e URL carregados nos offcanvases para sincronização inteligente
+        document.addEventListener('htmx:afterOnLoad', function (evt) {
+            const targetId = evt.detail.target.id;
+            if (targetId && targetId.startsWith('conteudo')) {
+                const path = evt.detail.requestConfig.path;
+                const protocolMatch = path.match(/\/([^\/]+)\/$/);
+                if (protocolMatch) {
+                    evt.detail.target.setAttribute('data-protocol', protocolMatch[1]);
+                    evt.detail.target.setAttribute('data-last-url', path);
+                }
+            }
+        });
+
+        // Disparado quando o operador tenta salvar sem mudanças
+        window.addEventListener("erroValidacao", function (evt) {
+            Swal.fire({
+                title: 'Nada para salvar!',
+                text: evt.detail.value || 'Você precisa alterar algum campo ou adicionar um comentário técnico para registrar esta atualização.',
+                icon: 'warning',
+                confirmButtonColor: '#008891'
+            });
         });
 
         // Atualização dos Balões
         async function updateBalloons() {
             try {
-                const response = await fetch("{% url 'users:api_dashboard_stats' %}"); 
-                if (!response.ok) return; 
+                const response = await fetch("{% url 'users:api_dashboard_stats' %}");
+                if (!response.ok) return;
                 const data = await response.json();
                 const map = {
                     'count-em-andamento': data.em_andamento_count,
@@ -641,24 +930,31 @@
         setInterval(updateBalloons, 30000);
         updateBalloons();
 
-        // Limpa o conteúdo dos offcanvas quando fechados para não poluir o próximo clique
-        function limparOffcanvas(id, spinnerCor, texto) {
+        // Limpa o conteúdo e reseta o título dos offcanvas quando fechados
+        function limparOffcanvas(id, spinnerCor, texto, tituloOriginal) {
             const el = document.getElementById(id);
-            if(el) {
+            if (el) {
                 el.addEventListener('hidden.bs.offcanvas', function () {
+                    // Reset do Conteúdo
                     const target = id.replace('offcanvas', 'conteudo');
                     document.getElementById(target).innerHTML = `
                         <div class="text-center py-5">
                             <div class="spinner-border text-${spinnerCor}" role="status"></div>
                             <p class="mt-2 text-muted" style="font-size: 11px;">${texto}</p>
                         </div>`;
+
+                    // Reset do Título (Importante pois a atualização/edição muda o título via OOB)
+                    const label = document.getElementById(id + 'Label');
+                    if (label && tituloOriginal) {
+                        label.innerHTML = tituloOriginal;
+                    }
                 });
             }
         }
-        
-        limparOffcanvas('offcanvasDetalhes', 'primary', 'Carregando dados estruturados...');
-        limparOffcanvas('offcanvasAtualizacao', 'primary', 'Carregando formulário...');
-        limparOffcanvas('offcanvasEditar', 'warning', 'Carregando ambiente de edição...');
+
+        limparOffcanvas('offcanvasDetalhes', 'primary', 'Carregando dados estruturados...', '<i class="bi bi-info-circle-fill me-2"></i>Detalhes do Chamado');
+        limparOffcanvas('offcanvasAtualizacao', 'primary', 'Carregando formulário...', '<i class="bi bi-journal-plus me-2 text-primary"></i>Inserir Atualização');
+        limparOffcanvas('offcanvasEditar', 'warning', 'Carregando ambiente de edição...', '<i class="bi bi-pencil-square me-2 text-warning"></i>Editar Chamado');
     });
 </script>
 {% endblock %}

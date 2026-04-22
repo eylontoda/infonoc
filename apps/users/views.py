@@ -11,6 +11,7 @@ from django.urls import reverse, reverse_lazy
 from asgiref.sync import sync_to_async
 import traceback
 import re
+import json
 
 # Importação de todos os modelos necessários
 from apps.incidents.models import (
@@ -262,6 +263,35 @@ async def atualizar_incidente_ajax(request, protocolo):
                 if new_impact_type and incident.impact_type_id != new_impact_type.id:
                     detected_slugs.append('impact_type')
 
+                # --- [BLOQUEIO] Verificação de Alterações ---
+                # Comparamos cada campo para garantir que houve mudança real
+                status_mudou = new_status and incident.status_id != new_status.id
+                impacto_mudou = incident.is_impact_active != is_impact_active
+                previsao_mudou = False
+                if new_expected_at:
+                    curr_exp = incident.expected_at.replace(second=0, microsecond=0) if incident.expected_at else None
+                    if curr_exp != new_expected_at.replace(second=0, microsecond=0):
+                        previsao_mudou = True
+                elif incident.expected_at is not None:
+                    previsao_mudou = True
+
+                impact_level_mudou = new_impact_level and incident.impact_level_id != new_impact_level.id
+                impact_type_mudou = new_impact_type and incident.impact_type_id != new_impact_type.id
+                
+                # Campos de normalização (se visíveis/enviados)
+                outros_campos_mudaram = False
+                if note_text and note_text != (incident.note or ''): outros_campos_mudaram = True
+                if rfo_text and rfo_text != (incident.rfo or ''): outros_campos_mudaram = True
+                if root_cause_id and incident.root_cause_id != (str(incident.root_cause_id) if incident.root_cause_id else ''): outros_campos_mudaram = True
+
+                has_changes = status_mudou or impacto_mudou or previsao_mudou or impact_level_mudou or impact_type_mudou or outros_campos_mudaram
+
+                if not has_changes and not comment_text:
+                    response = HttpResponse(status=200) 
+                    response['HX-Trigger'] = json.dumps({"erroValidacao": "Nenhuma alteração detectada."})
+                    response['HX-Reswap'] = 'none' # Impede que o HTMX limpe o formulário
+                    return response
+
                 # 2. Comentário Automático de Sistema (se o operador não preencher nada)
                 if not comment_text:
                     if detected_slugs or (new_status and incident.status_id != new_status.id):
@@ -343,14 +373,27 @@ async def atualizar_incidente_ajax(request, protocolo):
 
                 return True
                 
-            await save_update()
+            result = await save_update()
+            if isinstance(result, HttpResponse):
+                return result
             
-            # [HTMX] Retorna HTML de Sucesso. Sem Refresh. Aciona o listener do DataTables.
-            response = HttpResponse("""
+            # [HTMX] Exibe sucesso por 2s e depois carrega os detalhes automaticamente
+            response = HttpResponse(f"""
                 <div class="text-center py-5 animate-fade-in">
                     <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
                     <h5 class="mt-3 fw-bold text-success">Atualização Registada com Sucesso!</h5>
-                    <p class="text-muted" style="font-size: 11px;">Pode fechar este painel. A tabela será atualizada.</p>
+                    <p class="text-muted" style="font-size: 11px;">Redirecionando para detalhes em 2 segundos...</p>
+                    
+                    <!-- Gatilho HTMX para carregar os detalhes após 2s -->
+                    <div hx-get="/incidents/detalhe-ajax/{protocolo}/" 
+                         hx-trigger="load delay:2s" 
+                         hx-target="#conteudoAtualizacao">
+                    </div>
+                </div>
+
+                <!-- Ajuste OOB para o título do Offcanvas -->
+                <div id="offcanvasAtualizacaoLabel" hx-swap-oob="innerHTML">
+                    <i class="bi bi-info-circle-fill me-2"></i>Detalhes do Chamado (Pós-Atualização)
                 </div>
             """)
             response['HX-Trigger'] = 'atualizacaoConcluida'
@@ -434,49 +477,121 @@ async def editar_incidente_ajax(request, protocolo):
         if request.method == 'POST':
             @sync_to_async
             def save_structural_edit():
-                incident = Incident.objects.filter(mk_protocol=protocolo).first()
-                if not incident: return False
-                
-                # Resgate de Campos
-                incident.incident_type_id = request.POST.get('incident_type_id')
-                incident.detection_source_id = request.POST.get('detection_source_id') or None
-                incident.reported_symptom_id = request.POST.get('reported_symptom_id') or None
-                incident.sla_id = request.POST.get('sla_id')
-                incident.client_type_id = request.POST.get('client_type_id')
-                
-                # Designador (Depende do Tipo)
-                tipo = IncidentType.objects.get(id=incident.incident_type_id).name
-                incident.site_id = request.POST.get('site_id') if tipo == 'Site' else None
-                incident.circuit_id = request.POST.get('circuit_id') if tipo in ['Backbone', 'Core'] else None
-                incident.device_id = request.POST.get('device_id') if tipo in ['R.A.', 'Equipamento'] else None
-                
-                # Datas
-                occ_at = request.POST.get('occured_at')
-                exp_at = request.POST.get('expected_at')
-                if occ_at: incident.occured_at = parse_datetime(occ_at)
-                if exp_at: incident.expected_at = parse_datetime(exp_at)
-                
-                # Texto
-                incident.description = request.POST.get('description', '')
-                
-                # ManyToMany (Regiões)
-                regioes = request.POST.getlist('affected_regions')
-                if regioes: incident.affected_regions.set(regioes)
-                
-                incident.save()
-                return True
+                try:
+                    with transaction.atomic():
+                        incident = Incident.objects.select_related('incident_type').filter(mk_protocol=protocolo).first()
+                        if not incident: return "Protocolo não encontrado."
+                        
+                        def clean_id(val):
+                            if not val or str(val).strip().lower() in ['none', 'null', '']:
+                                return None
+                            try:
+                                return int(val)
+                            except (ValueError, TypeError):
+                                return None
 
-            if await save_structural_edit():
-                response = HttpResponse("""
+                        # Valores Atuais para Comparação
+                        old_occured = incident.occured_at.replace(second=0, microsecond=0) if incident.occured_at else None
+                        old_expected = incident.expected_at.replace(second=0, microsecond=0) if incident.expected_at else None
+
+                        # Novos Valores Sanitizados
+                        new_type_id = clean_id(request.POST.get('incident_type_id'))
+                        new_occured_str = request.POST.get('occured_at')
+                        new_expected_str = request.POST.get('expected_at')
+                        
+                        temp_occ = parse_datetime(new_occured_str) if new_occured_str else None
+                        if temp_occ and timezone.is_naive(temp_occ):
+                            temp_occ = timezone.make_aware(temp_occ)
+                        new_occured = temp_occ.replace(second=0, microsecond=0) if temp_occ else None
+                        
+                        temp_exp = parse_datetime(new_expected_str) if new_expected_str else None
+                        if temp_exp and timezone.is_naive(temp_exp):
+                            temp_exp = timezone.make_aware(temp_exp)
+                        new_expected = temp_exp.replace(second=0, microsecond=0) if temp_exp else None
+                        
+                        # Depecção de Mudanças com Debug
+                        diffs = []
+                        if incident.incident_type_id != new_type_id: diffs.append("Tipo")
+                        if old_occured != new_occured: diffs.append("Ocorrência")
+                        if old_expected != new_expected: diffs.append("Previsão")
+                        if request.POST.get('description', '') != (incident.description or ''): diffs.append("Descrição")
+                        if clean_id(request.POST.get('sla_id')) != incident.sla_id: diffs.append("SLA")
+                        if clean_id(request.POST.get('client_type_id')) != incident.client_type_id: diffs.append("Cliente")
+                        if clean_id(request.POST.get('detection_source_id')) != incident.detection_source_id: diffs.append("Fonte")
+                        if clean_id(request.POST.get('reported_symptom_id')) != incident.reported_symptom_id: diffs.append("Sintoma")
+                        if clean_id(request.POST.get('site_id')) != incident.site_id: diffs.append("Site")
+                        if clean_id(request.POST.get('circuit_id')) != incident.circuit_id: diffs.append("Circuito")
+                        if clean_id(request.POST.get('device_id')) != incident.device_id: diffs.append("Device")
+                        
+                        # Verificação de M2M
+                        regioes_novas = set(clean_id(r) for r in request.POST.getlist('affected_regions') if clean_id(r))
+                        regioes_atuais = set(r.id for r in incident.affected_regions.all())
+                        if regioes_novas != regioes_atuais:
+                            diffs.append("Regiões")
+
+                        has_changes = bool(diffs)
+
+                        if not has_changes:
+                            response = HttpResponse(status=200)
+                            response['HX-Trigger'] = json.dumps({"erroValidacao": "Nenhuma alteração detectada."})
+                            response['HX-Reswap'] = 'none'
+                            return response
+
+                        # Aplicação das Mudanças
+                        incident.incident_type_id = new_type_id
+                        incident.detection_source_id = clean_id(request.POST.get('detection_source_id'))
+                        incident.reported_symptom_id = clean_id(request.POST.get('reported_symptom_id'))
+                        incident.sla_id = clean_id(request.POST.get('sla_id'))
+                        incident.client_type_id = clean_id(request.POST.get('client_type_id'))
+                        
+                        tipo_obj = IncidentType.objects.filter(id=incident.incident_type_id).first()
+                        tipo = tipo_obj.name if tipo_obj else "N/D"
+                        
+                        incident.site_id = clean_id(request.POST.get('site_id')) if tipo == 'Site' else None
+                        incident.circuit_id = clean_id(request.POST.get('circuit_id')) if tipo in ['Backbone', 'Core'] else None
+                        incident.device_id = clean_id(request.POST.get('device_id')) if tipo in ['R.A.', 'Equipamento'] else None
+                        
+                        if new_occured_str: incident.occured_at = parse_datetime(new_occured_str)
+                        if new_expected_str: incident.expected_at = parse_datetime(new_expected_str)
+                        incident.description = request.POST.get('description', '')
+                        
+                        incident.save()
+                        
+                        regioes = request.POST.getlist('affected_regions')
+                        incident.affected_regions.set(regioes)
+                        
+                        return True
+                except Exception as e:
+                    return f"Erro técnico: {str(e)}"
+
+            result = await save_structural_edit()
+            if isinstance(result, HttpResponse):
+                return result
+            
+            if result is True:
+                # [HTMX] Exibe sucesso por 2s e depois carrega os detalhes automaticamente
+                response = HttpResponse(f"""
                     <div class="text-center py-5 animate-fade-in">
                         <i class="bi bi-check-circle-fill text-warning" style="font-size: 3rem;"></i>
                         <h5 class="mt-3 fw-bold text-dark">Alterações Estruturais Salvas!</h5>
-                        <p class="text-muted" style="font-size: 11px;">O chamado foi reparametrizado com sucesso.</p>
+                        <p class="text-muted" style="font-size: 11px;">Redirecionando para detalhes em 2 segundos...</p>
+                        
+                        <!-- Gatilho HTMX para carregar os detalhes após 2s -->
+                        <div hx-get="/incidents/detalhe-ajax/{protocolo}/" 
+                             hx-trigger="load delay:2s" 
+                             hx-target="#conteudoEditar">
+                        </div>
+                    </div>
+
+                    <!-- Ajuste OOB para o título do Offcanvas -->
+                    <div id="offcanvasEditarLabel" hx-swap-oob="innerHTML">
+                        <i class="bi bi-info-circle-fill me-2"></i>Detalhes do Chamado (Pós-Edição)
                     </div>
                 """)
-                response['HX-Trigger'] = 'atualizacaoConcluida'
+                response['HX-Trigger'] = json.dumps({"atualizacaoConcluida": True})
                 return response
-            return HttpResponse("Erro ao salvar", status=400)
+            
+            return HttpResponse(f"<div class='alert alert-danger m-2'>{result}</div>", status=200)
 
         # --- [GET] CARREGAMENTO DO FORMULÁRIO ---
         @sync_to_async
@@ -522,7 +637,7 @@ async def editar_incidente_ajax(request, protocolo):
         return await sync_to_async(render)(request, 'users/partials/editar_incidente_offcanvas.html', context)
 
     except Exception as e:
-        return HttpResponse(f"Erro: {str(e)}", status=500)
+        return HttpResponse(f"<div class='alert alert-danger m-2'>Erro crítico: {str(e)}</div>", status=200)
 
 
 # ==============================================================================
@@ -590,10 +705,21 @@ async def api_incidents_list(request):
         ).order_by('-occured_at')
         
         data_list = []
+        hoje = timezone.now()
+        data_list = []
         for inc in incidents:
             dt_occured_local = timezone.localtime(inc.occured_at) if inc.occured_at else None
-            raw_updated = inc.last_history_update_at or inc.occured_at
-            dt_updated_local = timezone.localtime(raw_updated) if raw_updated else None
+            
+            # Inatividade = Tempo desde a última atualização (ou criação se nunca atualizado)
+            # Se normalizado, consideramos 0 para não poluir ou atrapalhar a ordenação
+            is_normalizado = inc.status.name.lower() == 'normalizado'
+            
+            if is_normalizado:
+                inactivity_minutes = 0
+            else:
+                last_update = inc.last_history_update_at or inc.occured_at
+                diff_delta = hoje - last_update if last_update else None
+                inactivity_minutes = int(diff_delta.total_seconds() / 60) if diff_delta else 0
 
             tipo_nome = inc.incident_type.name if inc.incident_type else ""
             designator = "N/D"
@@ -616,7 +742,7 @@ async def api_incidents_list(request):
                 'description': inc.description[:100] + "..." if inc.description and len(inc.description) > 100 else (inc.description or ""),
                 'status_name': inc.status.name if inc.status else "Desconhecido",
                 'is_impact_active': inc.is_impact_active,
-                'updated_at_iso': dt_updated_local.isoformat() if dt_updated_local else None, 
+                'inactivity_minutes': inactivity_minutes,
                 'assigned_to': inc.assigned_to.username if inc.assigned_to else "Livre",
             })
         return data_list
@@ -640,6 +766,8 @@ async def resgatar_incidente_ajax(request, protocolo):
         try:
             from apps.incidents.models import Incident
             incident = Incident.objects.get(mk_protocol=protocolo)
+            if incident.assigned_to == user:
+                return True # Já está atribuído
             incident.assigned_to = user
             incident.save()
             return True
@@ -648,4 +776,53 @@ async def resgatar_incidente_ajax(request, protocolo):
             return False
 
     success = await do_rescue()
+    return JsonResponse({'success': success})
+
+async def liberar_incidente_ajax(request, protocolo):
+    """
+    Remove a atribuição do incidente (deixa Livre).
+    """
+    user = await request.auser()
+    if not user.is_authenticated:
+        return JsonResponse({'success': False, 'error': 'Não autenticado'}, status=401)
+    
+    @sync_to_async
+    def do_release():
+        try:
+            from apps.incidents.models import Incident
+            incident = Incident.objects.get(mk_protocol=protocolo)
+            incident.assigned_to = None
+            incident.save()
+            return True
+        except Exception as e:
+            print(f"Erro ao liberar: {e}")
+            return False
+
+    success = await do_release()
+    return JsonResponse({'success': success})
+
+async def excluir_incidente_ajax(request, protocolo):
+    """
+    Muda o status do incidente para 'Excluido' (Soft Delete).
+    """
+    user = await request.auser()
+    if not user.is_authenticated:
+        return JsonResponse({'success': False, 'error': 'Não autenticado'}, status=401)
+    
+    @sync_to_async
+    def do_delete():
+        try:
+            from apps.incidents.models import Incident, Status
+            incident = Incident.objects.get(mk_protocol=protocolo)
+            status_excluido = Status.objects.filter(name__iexact='Excluido').first()
+            if status_excluido:
+                incident.status = status_excluido
+                incident.save()
+                return True
+            return False
+        except Exception as e:
+            print(f"Erro ao excluir: {e}")
+            return False
+
+    success = await do_delete()
     return JsonResponse({'success': success})

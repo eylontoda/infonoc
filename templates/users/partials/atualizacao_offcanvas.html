@@ -7,6 +7,7 @@
     <form id="formAtualizacaoInformativo" class="mb-1" hx-post="/incidents/atualizar-ajax/{{ incident.mk_protocol }}/"
         hx-target="#conteudoAtualizacao" hx-swap="innerHTML">
         {% csrf_token %}
+        <div id="mensagemErroAtualizacao"></div>
 
         <!-- Novo Status e Previsão -->
         <div class="row g-2 mb-1">

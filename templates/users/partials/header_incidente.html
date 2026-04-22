@@ -14,12 +14,20 @@
                 title="Atualizar">
             <i class="bi bi-plus-square-fill"></i>
         </button>
-        <!-- Resgatar -->
-        <button class="btn btn-header-action btn-action-assign" 
-                onclick="informativoManager.assumirResponsabilidade('{{ incident.mk_protocol }}')" 
-                title="Resgatar">
-            <i class="bi bi-person-check-fill"></i>
-        </button>
+        <!-- Resgatar / Liberar -->
+        {% if incident.assigned_to == request.user %}
+            <button class="btn btn-header-action btn-action-release" 
+                    onclick="informativoManager.liberarResponsabilidade('{{ incident.mk_protocol }}')" 
+                    title="Liberar Resgate">
+                <i class="bi bi-person-dash-fill"></i>
+            </button>
+        {% else %}
+            <button class="btn btn-header-action btn-action-assign" 
+                    onclick="informativoManager.assumirResponsabilidade('{{ incident.mk_protocol }}')" 
+                    title="Resgatar">
+                <i class="bi bi-person-check-fill"></i>
+            </button>
+        {% endif %}
         <!-- Editar -->
         <button class="btn btn-header-action btn-action-edit" 
                 hx-get="/incidents/editar-ajax/{{ incident.mk_protocol }}/" hx-target="#conteudoEditar" data-bs-toggle="offcanvas" data-bs-target="#offcanvasEditar"
@@ -119,6 +127,7 @@
     .btn-action-view { background-color: #0d6efd; }
     .btn-action-add { background-color: #475569; }
     .btn-action-assign { background-color: #198754; }
+    .btn-action-release { background-color: #fd7e14; }
     .btn-action-edit { background-color: #ffc107; color: #000 !important; }
     .btn-action-delete { background-color: #dc3545; }
 
@@ -135,6 +144,7 @@
     [data-bs-theme="dark"] .btn-action-view { color: #0d6efd !important; }
     [data-bs-theme="dark"] .btn-action-add { color: #94a3b8 !important; }
     [data-bs-theme="dark"] .btn-action-assign { color: #198754 !important; }
+    [data-bs-theme="dark"] .btn-action-release { color: #fd7e14 !important; }
     [data-bs-theme="dark"] .btn-action-edit { color: #ffc107 !important; }
     [data-bs-theme="dark"] .btn-action-delete { color: #dc3545 !important; }
 </style>
