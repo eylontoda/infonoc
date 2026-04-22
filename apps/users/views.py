@@ -1004,6 +1004,177 @@ async def novo_incidente_ajax(request):
                 ).order_by('name')),
             }
 
+        if request.method == 'POST':
+            @sync_to_async
+            def save_new_incident():
+                try:
+                    # 1. Resgate de Dados
+                    mk_protocol = request.POST.get('mk_protocol', '').strip()
+                    status_id = request.POST.get('status_id')
+                    incident_type_id = request.POST.get('incident_type_id')
+                    reported_symptom_id = request.POST.get('reported_symptom_id')
+                    detection_source_id = request.POST.get('detection_source_id')
+                    description = request.POST.get('description', '').strip()
+                    occured_at_str = request.POST.get('occured_at')
+                    
+                    # Infra/Designador
+                    site_id = request.POST.get('site_id')
+                    circuit_id = request.POST.get('circuit_id')
+                    device_id = request.POST.get('device_id')
+                    
+                    # Outros campos
+                    sla_id = request.POST.get('sla_id')
+                    client_type_id = request.POST.get('client_type_id')
+                    impact_type_id = request.POST.get('impact_type_id')
+                    impact_level_id = request.POST.get('impact_level_id')
+                    is_impact_active = request.POST.get('is_impact_active') == 'True'
+                    expected_at_str = request.POST.get('expected_at')
+                    affected_regions = request.POST.getlist('affected_regions')
+
+                    # 2. Validação de Campos Obrigatórios
+                    erros = []
+                    if not mk_protocol: 
+                        erros.append("Protocolo")
+                    else:
+                        # Validação de Formato (4 dígitos + ponto + 1-5 dígitos)
+                        import re
+                        if not re.match(r'^\d{4}\.\d{1,5}$', mk_protocol):
+                            erros.append("Protocolo (Formato inválido: esperado XXXX.Y, ex: 1234.5)")
+                        else:
+                            # Validação de Duplicidade (Apenas para não excluídos)
+                            duplicado = Incident.objects.exclude(status__name__iexact='Excluido').filter(mk_protocol=mk_protocol).first()
+                            if duplicado:
+                                # Se for duplicado, retornamos um link específico para o container via trigger
+                                response = HttpResponse(status=200)
+                                link_html = f'<div class="alert alert-warning py-1 px-2 mb-0" style="font-size: 10px; border-left: 3px solid #ffc107; color: #856404; background-color: #fff3cd;">' \
+                                            f'<i class="bi bi-exclamation-triangle-fill me-1"></i> Protocolo já existe. ' \
+                                            f'<a href="javascript:void(0)" class="fw-bold text-decoration-underline" style="color: #856404;" ' \
+                                            f'hx-get="/incidents/detalhe-ajax/{mk_protocol}/" hx-target="#conteudoDetalhes" ' \
+                                            f'data-bs-toggle="offcanvas" data-bs-target="#offcanvasDetalhes">Ver Incidente {mk_protocol}</a>' \
+                                            f'</div>'
+                                response['HX-Trigger'] = json.dumps({"protocoloDuplicado": link_html})
+                                response['HX-Reswap'] = 'none'
+                                return response
+
+                    if not status_id: erros.append("Status Inicial")
+                    if not incident_type_id: erros.append("Tipo de Incidente")
+                    if not reported_symptom_id: erros.append("Sintoma Reportado")
+                    if not description: erros.append("Descrição")
+                    if not occured_at_str: erros.append("Início da Ocorrência")
+                    
+                    # Validação de Designador (Baseada no Tipo)
+                    tipo_obj = IncidentType.objects.filter(id=incident_type_id).first() if incident_type_id else None
+                    tipo_nome = tipo_obj.name if tipo_obj else ""
+                    
+                    designador_vazio = False
+                    if tipo_nome == 'Site' and not site_id: designador_vazio = True
+                    elif tipo_nome in ['Backbone', 'Core'] and not circuit_id: designador_vazio = True
+                    elif tipo_nome in ['R.A.', 'Equipamento'] and not device_id: designador_vazio = True
+                    
+                    if designador_vazio:
+                        erros.append("Designador (Site/Circuito/Device)")
+
+                    if erros:
+                        response = HttpResponse(status=200)
+                        msg = f"Os seguintes campos são obrigatórios: {', '.join(erros)}."
+                        response['HX-Trigger'] = json.dumps({"erroValidacao": msg})
+                        response['HX-Reswap'] = 'none'
+                        return response
+
+                    # 3. Processamento de Datas e Limpeza de IDs Opcionais
+                    now = timezone.now()
+                    occured_at = parse_datetime(occured_at_str)
+                    if occured_at and timezone.is_naive(occured_at):
+                        occured_at = timezone.make_aware(occured_at)
+                    
+                    # Converter strings vazias em None para campos opcionais
+                    def clean_id(val):
+                        return val if val and val.strip() else None
+
+                    sla_id = clean_id(sla_id)
+                    client_type_id = clean_id(client_type_id)
+                    impact_type_id = clean_id(impact_type_id)
+                    impact_level_id = clean_id(impact_level_id)
+                    detection_source_id = clean_id(detection_source_id)
+                    reported_symptom_id = clean_id(reported_symptom_id)
+
+                    expected_at = None
+                    if is_impact_active and expected_at_str:
+                        expected_at = parse_datetime(expected_at_str)
+                        if expected_at and timezone.is_naive(expected_at):
+                            expected_at = timezone.make_aware(expected_at)
+                        if expected_at and expected_at <= (occured_at or now):
+                            response = HttpResponse(status=200)
+                            response['HX-Trigger'] = json.dumps({"erroValidacao": "A previsão deve ser posterior ao início."})
+                            response['HX-Reswap'] = 'none'
+                            return response
+
+                    # 4. Persistência
+                    with transaction.atomic():
+                        incident = Incident.objects.create(
+                            mk_protocol=mk_protocol,
+                            status_id=status_id,
+                            incident_type_id=incident_type_id,
+                            reported_symptom_id=reported_symptom_id,
+                            detection_source_id=detection_source_id,
+                            description=description,
+                            occured_at=occured_at,
+                            expected_at=expected_at,
+                            sla_id=sla_id,
+                            client_type_id=client_type_id,
+                            impact_type_id=impact_type_id,
+                            impact_level_id=impact_level_id,
+                            is_impact_active=is_impact_active,
+                            site_id=site_id if tipo_nome == 'Site' else None,
+                            circuit_id=circuit_id if tipo_nome in ['Backbone', 'Core'] else None,
+                            device_id=device_id if tipo_nome in ['R.A.', 'Equipamento'] else None,
+                            created_by=user,
+                            assigned_to=user
+                        )
+                        
+                        if affected_regions:
+                            incident.affected_regions.set(affected_regions)
+                        
+                        # Histórico Inicial
+                        UpdateIncident.objects.create(
+                            incident=incident,
+                            created_by=user,
+                            status=incident.status,
+                            is_impact_active=incident.is_impact_active,
+                            comment="[SISTEMA] Abertura de incidente.",
+                            impact_type=incident.impact_type,
+                            impact_level=incident.impact_level,
+                            expected_at=incident.expected_at,
+                            time_elapsed=0
+                        )
+                    
+                    return True
+                except Exception as e:
+                    return f"Erro ao salvar: {str(e)}"
+
+            result = await save_new_incident()
+            if isinstance(result, HttpResponse):
+                return result
+            
+            if result is True:
+                response = HttpResponse("""
+                    <div class="text-center py-5 animate-fade-in">
+                        <i class="bi bi-rocket-takeoff-fill text-success" style="font-size: 3rem;"></i>
+                        <h5 class="mt-3 fw-bold text-success">Incidente Aberto com Sucesso!</h5>
+                        <p class="text-muted" style="font-size: 11px;">Aguarde, atualizando dashboard...</p>
+                        <script>
+                            setTimeout(() => {
+                                bootstrap.Modal.getInstance(document.getElementById('modalNovo')).hide();
+                                window.location.reload(); 
+                            }, 1500);
+                        </script>
+                    </div>
+                """)
+                response['HX-Trigger'] = 'incidenteCriado'
+                return response
+            
+            return HttpResponse(f"<div class='alert alert-danger m-3'>{result}</div>")
+
         context = await get_context()
         return render(request, 'users/partials/novo_incidente_modal.html', context)
 

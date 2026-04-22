@@ -108,7 +108,7 @@ class Incident(BaseModel):
     
     status = models.ForeignKey(Status, on_delete=models.PROTECT)
     incident_type = models.ForeignKey(IncidentType, on_delete=models.PROTECT)
-    sla = models.ForeignKey(SLA, on_delete=models.PROTECT) 
+    sla = models.ForeignKey(SLA, on_delete=models.PROTECT, null=True, blank=True) 
 
     # --- FASE 1: ABERTURA (O que sabemos agora?) ---
     detection_source = models.ForeignKey(DetectionSource, on_delete=models.PROTECT,null=True, blank=True)
@@ -123,8 +123,8 @@ class Incident(BaseModel):
     site = models.ForeignKey('netbox.Site', on_delete=models.PROTECT, null=True, blank=True)
     device = models.ForeignKey('netbox.Device', on_delete=models.PROTECT, null=True, blank=True)
     root_cause = models.ForeignKey(RootCause, on_delete=models.PROTECT, null=True, blank=True)
-    impact_type = models.ForeignKey(ImpactType, on_delete=models.PROTECT)
-    impact_level = models.ForeignKey(ImpactLevel, on_delete=models.PROTECT)
+    impact_type = models.ForeignKey(ImpactType, on_delete=models.PROTECT, null=True, blank=True)
+    impact_level = models.ForeignKey(ImpactLevel, on_delete=models.PROTECT, null=True, blank=True)
     affected_regions = models.ManyToManyField(
         'netbox.Region', 
         related_name='incidents_affected', 
@@ -132,7 +132,7 @@ class Incident(BaseModel):
         verbose_name="Cidades/Regiões Afetadas"
     )
     is_impact_active = models.BooleanField(default=True)
-    client_type = models.ForeignKey(ClientType, on_delete=models.PROTECT)
+    client_type = models.ForeignKey(ClientType, on_delete=models.PROTECT, null=True, blank=True)
 
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='incidents_created')
     assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='incidents_assigned')
