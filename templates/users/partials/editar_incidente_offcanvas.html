@@ -83,14 +83,13 @@
             <small class="text-muted d-block mt-1" style="font-size: 9px;"><i class="bi bi-info-circle me-1"></i> Digite para filtrar a lista</small>
         </div>
 
-        <!-- Sintoma e SLA -->
+        <!-- Cliente e SLA -->
         <div class="row g-2 mb-1">
             <div class="col-6">
-                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Sintoma Reportado</label>
-                <select class="form-select form-select-sm shadow-none" name="reported_symptom_id" style="font-size: 11px;">
-                    <option value="">Selecione...</option>
-                    {% for sint in lista_sintomas %}
-                        <option value="{{ sint.id }}" {% if incident.reported_symptom_id == sint.id %}selected{% endif %}>{{ sint.name }}</option>
+                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Tipo de Cliente</label>
+                <select class="form-select form-select-sm shadow-none" name="client_type_id" style="font-size: 11px;">
+                    {% for cli_type in lista_tipos_cliente %}
+                        <option value="{{ cli_type.id }}" {% if incident.client_type_id == cli_type.id %}selected{% endif %}>{{ cli_type.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -102,6 +101,17 @@
                     {% endfor %}
                 </select>
             </div>
+        </div>
+
+        <!-- Sintoma Reportado -->
+        <div class="mb-1">
+            <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Sintoma Reportado</label>
+            <select class="form-select form-select-sm shadow-none" name="reported_symptom_id" style="font-size: 11px;">
+                <option value="">Selecione...</option>
+                {% for sint in lista_sintomas %}
+                    <option value="{{ sint.id }}" {% if incident.reported_symptom_id == sint.id %}selected{% endif %}>{{ sint.name }}</option>
+                {% endfor %}
+            </select>
         </div>
 
         <!-- Datas -->

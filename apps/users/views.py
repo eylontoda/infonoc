@@ -14,11 +14,12 @@ import re
 
 # Importação de todos os modelos necessários
 from apps.incidents.models import (
-    Incident, Status, UpdateIncident, 
+    Incident, Status, UpdateIncident, UpdateTag, 
     ImpactType, ImpactLevel, ClientType, SLA, IncidentType,
     RootCause, Symptom, DetectionSource
 )
 from apps.netbox.models import Region, Site, Circuit, Device
+from django.db import transaction
 from django.contrib.auth import get_user_model
 User = get_user_model()
 
@@ -96,9 +97,11 @@ async def detalhe_incidente_ajax(request, protocolo):
                 diff_seconds = (incident.expected_at - now).total_seconds()
                 status_slug = incident.status.name.lower() if incident.status else ""
                 
-                if status_slug == "em andamento" and diff_seconds < 0:
+                # Se não estiver resolvido e o tempo passou -> Vermelho
+                if not incident.resolved_at and diff_seconds < 0:
                     previsao_color = "#dc3545"  
-                elif 0 <= diff_seconds <= 1800:
+                # Se estiver próximo de vencer (30 min) -> Amarelo
+                elif not incident.resolved_at and 0 <= diff_seconds <= 1800:
                     previsao_color = "#ffc107"  
 
             # Cálculo de Tempos e Matemática (Mantido a iteração crescente)
@@ -219,52 +222,125 @@ async def atualizar_incidente_ajax(request, protocolo):
                 status_id = request.POST.get('status_id')
                 impact_type_id = request.POST.get('impact_type_id')
                 impact_level_id = request.POST.get('impact_level_id')
-                client_type_id = request.POST.get('client_type_id')
-                sla_id = request.POST.get('sla_id')
+                # client_type e sla movidos para Edição Mestra
                 
                 # Novos campos
                 assigned_to_id = request.POST.get('assigned_to_id')
                 root_cause_id = request.POST.get('root_cause_id')
                 note_text = request.POST.get('note', '').strip()
                 rfo_text = request.POST.get('rfo', '').strip()
-                
+                expected_at = request.POST.get('expected_at')
                 is_impact_active = request.POST.get('is_impact_active') == 'True'
                 comment_text = request.POST.get('technical_note', '').strip()
                 
                 new_status = Status.objects.filter(id=status_id).first()
                 new_impact_level = ImpactLevel.objects.filter(id=impact_level_id).first() if impact_level_id else None
                 new_impact_type = ImpactType.objects.filter(id=impact_type_id).first() if impact_type_id else None
+
+                # --- Lógica de Sincronização e Geração de Histórico (Movida do Model para a View) ---
+                now = timezone.now()
+                detected_slugs = []
                 
-                # Campos Administrativos / Normalização Automática (Ainda na View por serem específicos de permissão/fluxo)
-                if new_status and new_status.name.lower() == 'normalizado':
-                    if root_cause_id: incident.root_cause_id = root_cause_id
-                    if note_text: incident.note = note_text
-                    if rfo_text: incident.rfo = rfo_text
+                # 1. Detectar Mudanças para o Histórico (Compara o que veio do POST com o estado atual do incident)
+                if incident.is_impact_active != is_impact_active:
+                    detected_slugs.append('impact')
+                
+                new_expected_at = parse_datetime(expected_at) if expected_at else None
+                if new_expected_at:
+                    # Se a data vier sem fuso (do formulário HTML), torna ela "ciente" do fuso do sistema
+                    if timezone.is_naive(new_expected_at):
+                        new_expected_at = timezone.make_aware(new_expected_at)
                     
-                    if user.has_perm('incidents.can_edit_admin_fields'):
-                        occ_at = request.POST.get('occured_at')
-                        res_at = request.POST.get('resolved_at')
-                        if occ_at: incident.occured_at = parse_datetime(occ_at)
-                        if res_at: incident.resolved_at = parse_datetime(res_at)
+                    # Compara ignorando segundos/microssegundos para evitar falso positivo
+                    curr_exp = incident.expected_at.replace(second=0, microsecond=0) if incident.expected_at else None
+                    if curr_exp != new_expected_at.replace(second=0, microsecond=0):
+                        detected_slugs.append('expected_at')
 
-                # Outras relações que não estão (ainda) no log de UpdateIncident
-                if client_type_id: incident.client_type_id = client_type_id
-                if sla_id: incident.sla_id = sla_id
-                if new_status and new_status.name.lower() == 'escalonado' and assigned_to_id:
-                    incident.assigned_to_id = assigned_to_id
+                if new_impact_level and incident.impact_level_id != new_impact_level.id:
+                    detected_slugs.append('impact_level')
 
-                # A Mágica acontece aqui: O save() do UpdateIncident cuida do resto!
-                UpdateIncident.objects.create(
-                    incident=incident,
-                    created_by=user,
-                    status=new_status,
-                    is_impact_active=is_impact_active,
-                    comment=comment_text,
-                    impact_level=new_impact_level,
-                    impact_type=new_impact_type,
-                    # expected_at pode ser adicionado aqui se vier no POST
-                )
-                
+                if new_impact_type and incident.impact_type_id != new_impact_type.id:
+                    detected_slugs.append('impact_type')
+
+                # 2. Comentário Automático de Sistema (se o operador não preencher nada)
+                if not comment_text:
+                    if detected_slugs or (new_status and incident.status_id != new_status.id):
+                        changes = list(detected_slugs)
+                        if new_status and incident.status_id != new_status.id:
+                            changes.append('status')
+                        
+                        # Tradução para exibição amigável no comentário
+                        traducoes = {
+                            'impact': 'impacto',
+                            'expected_at': 'previsão',
+                            'impact_level': 'nível de impacto',
+                            'impact_type': 'tipo de impacto',
+                            'status': 'status'
+                        }
+                        readable_changes = [traducoes.get(s, s.replace('_', ' ')) for s in changes]
+                        comment_text = f"[SISTEMA] Atualização de: {', '.join(readable_changes)}."
+                    else:
+                        comment_text = "[SISTEMA] Atualização de rotina."
+
+                # 3. Cálculo de Tempo Decorrido
+                last_update = incident.last_history_update_at or incident.occured_at or now
+                time_elapsed = max(0, int((now - last_update).total_seconds() / 60))
+
+                # 4. Sincronização e Persistência (Transacional)
+                with transaction.atomic():
+                    # Atualiza o Incidente pai
+                    incident.status = new_status or incident.status
+                    incident.impact_level = new_impact_level or incident.impact_level
+                    incident.impact_type = new_impact_type or incident.impact_type
+                    incident.expected_at = new_expected_at or incident.expected_at
+                    incident.is_impact_active = is_impact_active
+                    incident.last_history_update_at = now
+                    
+                    # Outras relações específicas da View
+                    # client_type e sla movidos para Edição Mestra
+                    if new_status and new_status.name.lower() == 'escalonado' and assigned_to_id:
+                        incident.assigned_to_id = assigned_to_id
+                    
+                    # Detecção de Encerramento
+                    if incident.status.name.lower() in ['normalizado', 'resolvido', 'encerrado'] and not incident.resolved_at:
+                        incident.resolved_at = now
+                        # Processa campos extras de normalização se existirem
+                        if root_cause_id: incident.root_cause_id = root_cause_id
+                        if note_text: incident.note = note_text
+                        if rfo_text: incident.rfo = rfo_text
+                        
+                        # Permissão administrativa para datas retroativas
+                        if user.has_perm('incidents.can_edit_admin_fields'):
+                            occ_at_val = request.POST.get('occured_at')
+                            res_at_val = request.POST.get('resolved_at')
+                            if occ_at_val: incident.occured_at = parse_datetime(occ_at_val)
+                            if res_at_val: incident.resolved_at = parse_datetime(res_at_val)
+
+                    incident.save()
+
+                    # Cria o registro de atualização no histórico
+                    update_obj = UpdateIncident.objects.create(
+                        incident=incident,
+                        created_by=user,
+                        status=incident.status,
+                        is_impact_active=incident.is_impact_active,
+                        comment=comment_text,
+                        impact_level=incident.impact_level,
+                        impact_type=incident.impact_type,
+                        expected_at=incident.expected_at,
+                        time_elapsed=time_elapsed
+                    )
+
+                    # Atribui as tags de mudança
+                    if detected_slugs:
+                        tags = UpdateTag.objects.filter(slug__in=detected_slugs)
+                        update_obj.tags.set(tags)
+                    
+                    # Tag de Novo Comentário (se for manual)
+                    if not comment_text.startswith('[SISTEMA]'):
+                        comment_tag = UpdateTag.objects.filter(slug='is_new_comment').first()
+                        if comment_tag: update_obj.tags.add(comment_tag)
+
                 return True
                 
             await save_update()
@@ -366,6 +442,7 @@ async def editar_incidente_ajax(request, protocolo):
                 incident.detection_source_id = request.POST.get('detection_source_id') or None
                 incident.reported_symptom_id = request.POST.get('reported_symptom_id') or None
                 incident.sla_id = request.POST.get('sla_id')
+                incident.client_type_id = request.POST.get('client_type_id')
                 
                 # Designador (Depende do Tipo)
                 tipo = IncidentType.objects.get(id=incident.incident_type_id).name
@@ -416,6 +493,7 @@ async def editar_incidente_ajax(request, protocolo):
                 'lista_sintomas': list(Symptom.objects.all().order_by('name')),
                 'lista_fontes': list(DetectionSource.objects.all().order_by('name')),
                 'lista_slas': list(SLA.objects.all().order_by('id')),
+                'lista_tipos_cliente': list(ClientType.objects.all().order_by('id')),
                 'lista_regioes': list(Region.objects.all().order_by('name')),
                 
                 # Listas de infra categorizadas (Apenas ATIVOS)
