@@ -2,6 +2,9 @@ services:
   db:
     image: postgres:15-alpine
     container_name: infonoc_db
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     environment:
@@ -13,10 +16,17 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
 
   web:
     build: .
     container_name: infonoc_app
+    restart: always
     volumes:
       - .:/app
     ports:
@@ -30,6 +40,13 @@ services:
     environment:
       # [AJUSTE] Mantendo a conexão via rede interna do Docker
       - DATABASE_URL=postgres://infonoc_user:11223344@db:5432/infonoc
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          memory: 256M
 
 volumes:
   postgres_data:

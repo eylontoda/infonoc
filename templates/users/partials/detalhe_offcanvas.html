@@ -35,7 +35,7 @@
 
                 <p class="mb-1"><strong>Início:</strong> {{ incident.occured_at|date:"d/m/Y H:i" }}</p>
 
-                <p class="mb-1"><strong>Previsão:</strong>
+                <p class="mb-1"><strong>Previsão de Normalização:</strong>
                     <span class="fw-bold" style="color: {{ previsao_color|default:'#60c4b0' }};">
                         {{ incident.expected_at|date:"d/m/Y H:i"|default:"N/D" }}
                     </span>

@@ -372,7 +372,7 @@
                     <th>Inatividade</th>
                     <th>Status</th>
                     <th>Impacto</th>
-                    <th>Previsão</th>
+                    <th>Previsão de Normalização</th>
                     <th>Resgate</th>
                     <th class="text-center">Ações</th>
                 </tr>
@@ -499,7 +499,7 @@
             if (['Protocolo', 'Inicio', 'Designador', 'Descrição'].includes(title.trim())) {
                 $(this).html(`<input type="text" class="column-filter" placeholder="🔍 ${title}" />`);
             }
-            else if (['Status', 'Impacto', 'Resgate', 'Inatividade', 'Previsão'].includes(title.trim())) {
+            else if (['Status', 'Impacto', 'Resgate', 'Inatividade', 'Previsão de Normalização'].includes(title.trim())) {
                 let options = '<option value="">Todos</option>';
                 if (title.trim() === 'Status') {
                     options += '<option value="NOT_NORMALIZADO">Não Normalizados</option>';
@@ -509,7 +509,7 @@
                     options += '<option value="ATIVO">Recentes</option>';
                     options += '<option value="PAUSADO">Pausados</option>';
                 }
-                else if (title.trim() === 'Previsão') {
+                else if (title.trim() === 'Previsão de Normalização') {
                     options += '<option value="EM_DIA">Em dia</option>';
                     options += '<option value="PROXIMO">Próximos</option>';
                     options += '<option value="ATRASADO">Atrasados</option>';

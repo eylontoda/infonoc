@@ -257,12 +257,12 @@ async def atualizar_incidente_ajax(request, protocolo):
                     # 1. Com afetação: Obrigatório e Futuro
                     if not new_expected_at:
                         response = HttpResponse(status=200)
-                        response['HX-Trigger'] = json.dumps({"erroValidacao": "Para chamados 'Com afetação', a previsão (ETR) é obrigatória."})
+                        response['HX-Trigger'] = json.dumps({"erroValidacao": "Para chamados 'Com afetação', a previsão de normalização é obrigatória."})
                         response['HX-Reswap'] = 'none'
                         return response
                     if new_expected_at <= now:
                         response = HttpResponse(status=200)
-                        response['HX-Trigger'] = json.dumps({"erroValidacao": "A previsão (ETR) deve ser uma data futura."})
+                        response['HX-Trigger'] = json.dumps({"erroValidacao": "A previsão de normalização deve ser uma data futura."})
                         response['HX-Reswap'] = 'none'
                         return response
                 else:
@@ -342,7 +342,7 @@ async def atualizar_incidente_ajax(request, protocolo):
                         # Tradução para exibição amigável no comentário
                         traducoes = {
                             'impact': 'impacto',
-                            'expected_at': 'previsão',
+                            'expected_at': 'previsão de normalização',
                             'impact_level': 'nível de impacto',
                             'impact_type': 'tipo de impacto',
                             'stopped_at': 'previsão de despausa',
@@ -556,7 +556,7 @@ async def editar_incidente_ajax(request, protocolo):
                         diffs = []
                         if incident.incident_type_id != new_type_id: diffs.append("Tipo")
                         if old_occured != new_occured: diffs.append("Ocorrência")
-                        if old_expected != new_expected: diffs.append("Previsão")
+                        if old_expected != new_expected: diffs.append("Previsão de Normalização")
                         if request.POST.get('description', '') != (incident.description or ''): diffs.append("Descrição")
                         if clean_id(request.POST.get('sla_id')) != incident.sla_id: diffs.append("SLA")
                         if clean_id(request.POST.get('client_type_id')) != incident.client_type_id: diffs.append("Cliente")
@@ -1105,7 +1105,7 @@ async def novo_incidente_ajax(request):
                             expected_at = timezone.make_aware(expected_at)
                         if expected_at and expected_at <= (occured_at or now):
                             response = HttpResponse(status=200)
-                            response['HX-Trigger'] = json.dumps({"erroValidacao": "A previsão deve ser posterior ao início."})
+                            response['HX-Trigger'] = json.dumps({"erroValidacao": "A previsão de normalização deve ser posterior ao início."})
                             response['HX-Reswap'] = 'none'
                             return response
 

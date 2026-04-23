@@ -4,8 +4,7 @@
     <!-- Seção 1: Identificação e Status -->
     <div class="row g-2 mb-1">
         <div class="col-6">
-            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Protocolo MK /
-                Externo <span class="text-danger">*</span></label>
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">PROTOCOLO MK <span class="text-danger">*</span></label>
             <input type="text" name="mk_protocol" class="form-control form-control-sm shadow-none"
                 placeholder="Ex: 1234.5" style="font-size: 11px;" required pattern="\d{4}\.\d{1,5}"
                 title="Formato esperado: XXXX.Y (4 dígitos + ponto + 1 a 5 dígitos)">
@@ -199,7 +198,7 @@
         </div>
         <div class="col-6">
             <label id="labelExpectedAt" class="form-label fw-bold text-muted text-uppercase mb-0"
-                style="font-size: 9px;">Previsão (ETR)</label>
+                style="font-size: 9px;">Previsão de Normalização</label>
             <input type="datetime-local" name="expected_at" id="inputExpectedAt"
                 class="form-control form-control-sm shadow-none" style="font-size: 11px;"
                 oninvalid="this.setCustomValidity('Afetação ativa exige previsão!')"
@@ -386,7 +385,7 @@
                 if (impactLevel) impactLevel.removeAttribute('disabled');
                 if (selectSla) selectSla.removeAttribute('disabled');
                 if (clientType) clientType.removeAttribute('disabled');
-                labelETR.innerHTML = 'Previsão (ETR) <span class="text-danger">*</span>';
+                labelETR.innerHTML = 'Previsão de Normalização <span class="text-danger">*</span>';
                 containerRegions.style.opacity = '1';
                 containerRegions.style.pointerEvents = 'auto';
                 atualizarEtrPeloSla();
@@ -414,7 +413,7 @@
                     if (opt) clientType.value = opt.value;
                     clientType.setAttribute('disabled', 'disabled');
                 }
-                labelETR.innerHTML = 'Previsão (ETR)';
+                labelETR.innerHTML = 'Previsão de Normalização';
                 containerRegions.style.opacity = '0.5';
                 containerRegions.style.pointerEvents = 'none';
                 checkboxes.forEach(cb => cb.checked = false);

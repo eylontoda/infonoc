@@ -24,8 +24,7 @@
                 </select>
             </div>
             <div class="col-6">
-                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Previsão
-                    (ETR)</label>
+                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Previsão de Normalização</label>
                 <input type="datetime-local" class="form-control form-control-sm shadow-none" name="expected_at" id="inputExpectedAt"
                     value="{{ incident.expected_at|date:'Y-m-d\TH:i' }}" style="font-size: 11px;"
                     oninvalid="this.setCustomValidity('Afetação ativa exige previsão!')" 
@@ -276,13 +275,13 @@
             if (radioAtivo.checked) {
                 inputETR.removeAttribute('disabled');
                 inputETR.setAttribute('required', 'required');
-                inputETR.parentElement.querySelector('label').innerHTML = 'Previsão (ETR) <span class="text-danger">*</span>';
+                inputETR.parentElement.querySelector('label').innerHTML = 'Previsão de Normalização <span class="text-danger">*</span>';
             } else {
                 inputETR.setAttribute('disabled', 'disabled');
                 inputETR.removeAttribute('required');
                 inputETR.value = '';
                 inputETR.classList.remove('is-invalid');
-                inputETR.parentElement.querySelector('label').innerHTML = 'Previsão (ETR)';
+                inputETR.parentElement.querySelector('label').innerHTML = 'Previsão de Normalização';
             }
         }
 
