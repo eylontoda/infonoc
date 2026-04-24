@@ -454,8 +454,7 @@
 
             if (tipoText === 'Site') {
                 designadorText = document.getElementById('inputSiteNovo').value.trim();
-                prefixoDesc = `Incidente de Site: ${designadorText}`;
-                if (sintomaText) prefixoDesc += ` - ${sintomaText}`;
+                prefixoDesc = `${baseSintoma} de Site: ${designadorText}`;
             } else if (tipoText === 'Backbone') {
                 const inputBackbone = document.getElementById('inputCircuitoBackboneNovo');
                 const val = inputBackbone.value.trim();

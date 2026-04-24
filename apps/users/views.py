@@ -148,17 +148,26 @@ async def detalhe_incidente_ajax(request, protocolo):
                 return " ".join(parts)
 
             # Designador e Nomes Planos
+            # Designador e Nomes Planos (Sincronizado com Tabela Principal)
             tipo_nome = incident.incident_type.name if incident.incident_type else "N/D"
-            if tipo_nome == 'Site':
-                circuito_nome = incident.site.facility if (incident.site and incident.site.facility) else (incident.site.name if incident.site else "S/S")
+            if tipo_nome == 'Site' and incident.site:
+                facility = incident.site.facility if incident.site.facility else incident.site.name
+                circuito_nome = f"{facility} - {incident.site.name}"
             elif tipo_nome in ['Backbone', 'Core']:
                 circuito_nome = incident.circuit.name if incident.circuit else "S/C"
-            elif tipo_nome == 'R.A.':
+            elif tipo_nome in ['R.A.', 'Equipamento']:
                 circuito_nome = incident.device.name if incident.device else "S/D"
             else:
                 circuito_nome = "N/D"
                 
-            fornecedor_nome = incident.circuit.provider.name if incident.circuit and hasattr(incident.circuit, 'provider') and incident.circuit.provider else ""
+            # Fornecedor unificado (Tenant para Site, Provider para Circuito, Vendor para Equipamento)
+            fornecedor_nome = "N/D"
+            if tipo_nome in ['Backbone', 'Core'] and incident.circuit and incident.circuit.provider:
+                fornecedor_nome = incident.circuit.provider.name
+            elif tipo_nome == 'Site' and incident.site and incident.site.tenant:
+                fornecedor_nome = incident.site.tenant.name
+            elif tipo_nome in ['R.A.', 'Equipamento'] and incident.device and incident.device.vendor:
+                fornecedor_nome = incident.device.vendor.name
 
             # [NOVO] Extracção de Impacto Físico
             impacto_tipo_nome = incident.impact_type.name if incident.impact_type else "N/D"
@@ -420,16 +429,16 @@ async def atualizar_incidente_ajax(request, protocolo):
             if isinstance(result, HttpResponse):
                 return result
             
-            # [HTMX] Exibe sucesso por 2s e depois carrega os detalhes automaticamente
+            # [HTMX] Exibe sucesso por 1s e depois carrega os detalhes automaticamente
             response = HttpResponse(f"""
                 <div class="text-center py-5 animate-fade-in">
                     <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
-                    <h5 class="mt-3 fw-bold text-success">Atualização Registada com Sucesso!</h5>
-                    <p class="text-muted" style="font-size: 11px;">Redirecionando para detalhes em 2 segundos...</p>
+                    <h5 class="mt-3 fw-bold" style="color: var(--text-main);">Atualização Registrada com Sucesso!</h5>
+                    <p class="text-muted" style="font-size: 11px;">Redirecionando para detalhes em 1 segundo...</p>
                     
-                    <!-- Gatilho HTMX para carregar os detalhes após 2s -->
+                    <!-- Gatilho HTMX para carregar os detalhes após 1s -->
                     <div hx-get="/incidents/detalhe-ajax/{protocolo}/" 
-                         hx-trigger="load delay:2s" 
+                         hx-trigger="load delay:1s" 
                          hx-target="#conteudoAtualizacao">
                     </div>
                 </div>
@@ -692,16 +701,16 @@ async def editar_incidente_ajax(request, protocolo):
             
             if isinstance(result, dict) and 'new_protocol' in result:
                 new_proto = result['new_protocol']
-                # [HTMX] Exibe sucesso por 2s e depois carrega os detalhes automaticamente
+                # [HTMX] Exibe sucesso por 1s e depois carrega os detalhes automaticamente
                 response = HttpResponse(f"""
                     <div class="text-center py-5 animate-fade-in">
-                        <i class="bi bi-check-circle-fill text-warning" style="font-size: 3rem;"></i>
-                        <h5 class="mt-3 fw-bold text-dark">Alterações Estruturais Salvas!</h5>
-                        <p class="text-muted" style="font-size: 11px;">Redirecionando para detalhes em 2 segundos...</p>
+                        <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                        <h5 class="mt-3 fw-bold" style="color: var(--text-main);">Alterações Estruturais Salvas!</h5>
+                        <p class="text-muted" style="font-size: 11px;">Redirecionando para detalhes em 1 segundo...</p>
                         
-                        <!-- Gatilho HTMX para carregar os detalhes após 2s -->
+                        <!-- Gatilho HTMX para carregar os detalhes após 1s -->
                         <div hx-get="/incidents/detalhe-ajax/{new_proto}/" 
-                             hx-trigger="load delay:2s" 
+                             hx-trigger="load delay:1s" 
                              hx-target="#conteudoEditar">
                         </div>
                     </div>

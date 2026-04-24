@@ -312,8 +312,7 @@
 
             if (tipoText === 'Site') {
                 designadorText = document.getElementById('inputSiteMestre').value.trim();
-                prefixoDesc = `Incidente de Site: ${designadorText}`;
-                if (sintomaText) prefixoDesc += ` - ${sintomaText}`;
+                prefixoDesc = `${baseSintoma} de Site: ${designadorText}`;
             } else if (tipoText === 'Backbone') {
                 const inputBackbone = document.getElementById('inputCircuitoBackboneMestre');
                 const val = inputBackbone.value.trim();
@@ -431,6 +430,21 @@
         function updateImpactOpacity() {
             const isInativo = document.getElementById('impactoInativoMestre').checked;
             sectionAfetacao.style.opacity = isInativo ? '0.5' : '1';
+            
+            // Em vez de disabled (que remove do POST), usamos pointer-events para bloquear
+            sectionAfetacao.style.pointerEvents = isInativo ? 'none' : 'auto';
+
+            if (isInativo) {
+                const inputETR = document.getElementById('inputExpectedMestre');
+                if (inputETR) inputETR.value = "";
+            }
+            
+            // Garantimos que os botões de rádio de afetação fiquem fora do bloqueio de ponteiro
+            // para que o usuário possa reativar a seção
+            const impactRadioGroup = document.querySelector('[name="is_impact_active"]').closest('.col-4');
+            if (impactRadioGroup) {
+                impactRadioGroup.style.pointerEvents = 'auto';
+            }
         }
         radiosImpacto.forEach(r => r.addEventListener('change', updateImpactOpacity));
         updateImpactOpacity();
