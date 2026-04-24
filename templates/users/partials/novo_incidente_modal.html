@@ -1,45 +1,37 @@
 <form id="formNovoIncidente" hx-post="/novo-ajax/" hx-target="#conteudoNovo" class="p-1">
     {% csrf_token %}
 
-    <!-- Seção 1: Identificação e Status -->
+    <!-- Seção 1: Identificação Básica -->
     <div class="row g-2 mb-1">
-        <div class="col-6">
-            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">PROTOCOLO MK <span class="text-danger">*</span></label>
+        <div class="col-3">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 8px;">PROTOCOLO <span class="text-danger">*</span></label>
             <input type="text" name="mk_protocol" class="form-control form-control-sm shadow-none"
-                placeholder="Ex: 1234.5" style="font-size: 11px;" required pattern="\d{4}\.\d{1,5}"
+                placeholder="Ex: 1234.5" style="font-size: 10px;" required pattern="\d{4}\.\d{1,5}"
                 maxlength="10"
-                title="Formato esperado: XXXX.Y (Máximo 10 caracteres, incluindo o ponto)">
-            <small class="text-muted" style="font-size: 8px;">Máximo 10 caracteres (ex: 1234.54321)</small>
-            <div id="protocol-msg" class="mt-1"></div>
+                title="Formato esperado: XXXX.Y (Máximo 10 caracteres)">
+            <div id="protocol-msg" class="mt-0"></div>
         </div>
-        <div class="col-6">
-            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Status Inicial
-                <span class="text-danger">*</span></label>
-            <select name="status_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;" required>
+        <div class="col-3">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 8px;">Status Inicial <span class="text-danger">*</span></label>
+            <select name="status_id" class="form-select form-select-sm shadow-none" style="font-size: 10px;" required>
                 {% for s in lista_status %}
                 <option value="{{ s.id }}" {% if s.name == 'Em andamento' %}selected{% endif %}>{{ s.name }}</option>
                 {% endfor %}
             </select>
         </div>
-    </div>
-
-    <!-- Seção 2: Classificação -->
-    <div class="row g-2 mb-1">
-        <div class="col-4">
-            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Tipo de Incidente
-                <span class="text-danger">*</span></label>
+        <div class="col-3">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 8px;">Tipo <span class="text-danger">*</span></label>
             <select name="incident_type_id" id="selectTipoNovo" class="form-select form-select-sm shadow-none"
-                style="font-size: 11px;" required>
+                style="font-size: 10px;" required>
                 <option value="">Selecione...</option>
                 {% for t in lista_tipos %}
                 <option value="{{ t.id }}">{{ t.name }}</option>
                 {% endfor %}
             </select>
         </div>
-        <div class="col-4">
-            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Sintoma Reportado
-                <span class="text-danger">*</span></label>
-            <select name="reported_symptom_id" id="selectSintomaNovo" class="form-select form-select-sm shadow-none" style="font-size: 11px;"
+        <div class="col-3">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 8px;">Sintoma <span class="text-danger">*</span></label>
+            <select name="reported_symptom_id" id="selectSintomaNovo" class="form-select form-select-sm shadow-none" style="font-size: 10px;"
                 required>
                 <option value="">Selecione...</option>
                 {% for s in lista_sintomas %}
@@ -47,192 +39,159 @@
                 {% endfor %}
             </select>
         </div>
+    </div>
+
+    <!-- Seção 2: Infra e Tempo -->
+    <div class="row g-2 mb-1">
         <div class="col-4">
-            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Fonte de
-                Detecção</label>
-            <select name="detection_source_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 8px;">Fonte de Detecção</label>
+            <select name="detection_source_id" class="form-select form-select-sm shadow-none" style="font-size: 10px;">
                 <option value="">Selecione...</option>
                 {% for f in lista_fontes %}
                 <option value="{{ f.id }}" {% if f.name == 'Monitoramento Proativo (Zabbix/Grafana)' %}selected{% endif %}>{{ f.name }}</option>
                 {% endfor %}
             </select>
         </div>
-    </div>
-
-    <!-- Seção: DESIGNADOR (Dinâmico) -->
-    <div class="mb-1">
-        <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">DESIGNADOR <span
-                class="text-danger">*</span></label>
-
-        <!-- Sites -->
-        <div id="containerSiteNovo" class="designador-field-novo d-none">
-            <input type="text" class="form-control form-control-sm shadow-none mb-1" list="listSitesNovo"
-                id="inputSiteNovo" placeholder="Pesquisar Site..." style="font-size: 11px;">
-            <input type="hidden" name="site_id" id="hiddenSiteIdNovo">
-            <datalist id="listSitesNovo">
-                {% for site in lista_sites %}
-                <option data-id="{{ site.id }}" value="{{ site.facility }} - {{ site.name }}"></option>
-                {% endfor %}
-            </datalist>
-        </div>
-
-        <!-- Circuitos Backbone -->
-        <div id="containerCircuitoBackboneNovo" class="designador-field-novo d-none">
-            <input type="text" class="form-control form-control-sm shadow-none mb-1" list="listCircuitosBackboneNovo"
-                id="inputCircuitoBackboneNovo" placeholder="Pesquisar Circuito Backbone..." style="font-size: 11px;">
-            <datalist id="listCircuitosBackboneNovo">
-                {% for circ in lista_circuitos_backbone %}
-                <option data-id="{{ circ.id }}" value="{{ circ.name }}" data-site-a="{{ circ.site_a_region_name }}" data-site-z="{{ circ.site_z_region_name }}"></option>
-                {% endfor %}
-            </datalist>
-        </div>
-
-        <!-- Circuitos Core -->
-        <div id="containerCircuitoCoreNovo" class="designador-field-novo d-none">
-            <input type="text" class="form-control form-control-sm shadow-none mb-1" list="listCircuitosCoreNovo"
-                id="inputCircuitoCoreNovo" placeholder="Pesquisar Circuito Core..." style="font-size: 11px;">
-            <datalist id="listCircuitosCoreNovo">
-                {% for circ in lista_circuitos_core %}
-                <option data-id="{{ circ.id }}" value="{{ circ.name }}"></option>
-                {% endfor %}
-            </datalist>
-        </div>
-
-        <input type="hidden" name="circuit_id" id="hiddenCircuitoIdNovo">
-
-        <!-- Devices -->
-        <div id="containerDeviceNovo" class="designador-field-novo d-none">
-            <input type="text" class="form-control form-control-sm shadow-none mb-1" list="listDevicesNovo"
-                id="inputDeviceNovo" placeholder="Pesquisar Device..." style="font-size: 11px;">
-            <input type="hidden" name="device_id" id="hiddenDeviceIdNovo">
-            <datalist id="listDevicesNovo">
-                {% for dev in lista_devices %}
-                <option data-id="{{ dev.id }}" value="{{ dev.name }} ({{ dev.site.name }})"></option>
-                {% endfor %}
-            </datalist>
-        </div>
-        <small class="text-muted d-block" style="font-size: 8px;"><i class="bi bi-info-circle me-1"></i> Selecione o
-            tipo de incidente para habilitar a busca de infraestrutura</small>
-    </div>
-
-    <!-- Toggle de Afetação -->
-    <div class="mb-2">
-        <label class="form-label fw-bold text-muted text-uppercase mb-1 d-block text-center"
-            style="font-size: 9px;">Status da Afetação</label>
-        <div class="btn-group w-100 shadow-sm" role="group">
-            <input type="radio" class="btn-check" name="is_impact_active" id="impactoAtivoNovo" value="True" checked>
-            <label class="btn btn-outline-danger btn-sm py-1" for="impactoAtivoNovo" style="font-size: 10px;">
-                <i class="bi bi-exclamation-triangle me-1"></i> Com afetação
-            </label>
-
-            <input type="radio" class="btn-check" name="is_impact_active" id="impactoInativoNovo" value="False">
-            <label class="btn btn-outline-success btn-sm py-1" for="impactoInativoNovo" style="font-size: 10px;">
-                <i class="bi bi-check-circle me-1"></i> Sem afetação
-            </label>
-        </div>
-    </div>
-
-    <!-- Seção de Impacto -->
-    <div class="row g-2 mb-1">
-        <div class="col-6">
-            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Tipo de
-                Impacto</label>
-            <select name="impact_type_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
-                <option value="">Selecione...</option>
-                {% for t in lista_impacto_tipos %}
-                <option value="{{ t.id }}">{{ t.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-6">
-            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Nível de
-                Impacto</label>
-            <select name="impact_level_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
-                <option value="">Selecione...</option>
-                {% for l in lista_impacto_niveis %}
-                <option value="{{ l.id }}">{{ l.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-    </div>
-
-    <!-- Seção 3: SLA e Cliente -->
-    <div class="row g-2 mb-1">
-        <div class="col-6">
-            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">SLA Inicial</label>
-            <select name="sla_id" id="selectSlaNovo" class="form-select form-select-sm shadow-none"
-                style="font-size: 11px;">
-                <option value="">Selecione...</option>
-                {% for s in lista_slas %}
-                <option value="{{ s.id }}" data-hours="{{ s.name|slice:':-1' }}" {% if s.name == '4h' %}selected{% endif %}>{{ s.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-6">
-            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Segmento de
-                Cliente</label>
-            <select name="client_type_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
-                <option value="">Selecione...</option>
-                {% for c in lista_clientes %}
-                <option value="{{ c.id }}">{{ c.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-    </div>
-
-    <!-- Seção 4: Descrição -->
-    <div class="mb-1">
-        <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Descrição do Evento /
-            Designador <span class="text-danger">*</span></label>
-        <textarea name="description" id="textareaDescricaoNovo" class="form-control form-control-sm shadow-none" rows="2"
-            placeholder="Descreva o incidente..." style="font-size: 11px; resize: none;" required></textarea>
-    </div>
-
-    <!-- Seção 5: Afetação e Datas -->
-    <div class="row g-2 mb-1">
-        <div class="col-6">
-            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Início da
-                Ocorrência <span class="text-danger">*</span></label>
+        <div class="col-4">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 8px;">Início Ocorrência <span class="text-danger">*</span></label>
             <input type="datetime-local" name="occured_at" id="inputOccuredAt"
                 class="form-control form-control-sm shadow-none" value="{{ now|date:'Y-m-d\TH:i' }}"
-                style="font-size: 11px;" required>
+                style="font-size: 10px;" required>
         </div>
-        <div class="col-6">
-            <label id="labelExpectedAt" class="form-label fw-bold text-muted text-uppercase mb-0"
-                style="font-size: 9px;">Previsão de Normalização</label>
-            <input type="datetime-local" name="expected_at" id="inputExpectedAt"
-                class="form-control form-control-sm shadow-none" style="font-size: 11px;"
-                oninvalid="this.setCustomValidity('Afetação ativa exige previsão!')"
-                oninput="this.setCustomValidity('')">
+        <div class="col-4">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 8px;">Designador <span class="text-danger">*</span></label>
+            <div id="containerDefaultNovo" class="designador-field-novo">
+                <input type="text" class="form-control form-control-sm shadow-none" placeholder="Aguardando tipo..." style="font-size: 10px;" disabled>
+            </div>
+            <div id="containerSiteNovo" class="designador-field-novo d-none">
+                <input type="text" class="form-control form-control-sm shadow-none" list="listSitesNovo" id="inputSiteNovo" placeholder="Site..." style="font-size: 10px;">
+                <input type="hidden" name="site_id" id="hiddenSiteIdNovo">
+                <datalist id="listSitesNovo">
+                    {% for site in lista_sites %}
+                    <option data-id="{{ site.id }}" value="{{ site.facility }} - {{ site.name }}"></option>
+                    {% endfor %}
+                </datalist>
+            </div>
+            <div id="containerCircuitoBackboneNovo" class="designador-field-novo d-none">
+                <input type="text" class="form-control form-control-sm shadow-none" list="listCircuitosBackboneNovo" id="inputCircuitoBackboneNovo" placeholder="Backbone..." style="font-size: 10px;">
+                <datalist id="listCircuitosBackboneNovo">
+                    {% for circ in lista_circuitos_backbone %}
+                    <option data-id="{{ circ.id }}" value="{{ circ.name }}" data-site-a="{{ circ.site_a_region_name }}" data-site-z="{{ circ.site_z_region_name }}"></option>
+                    {% endfor %}
+                </datalist>
+            </div>
+            <div id="containerCircuitoCoreNovo" class="designador-field-novo d-none">
+                <input type="text" class="form-control form-control-sm shadow-none" list="listCircuitosCoreNovo" id="inputCircuitoCoreNovo" placeholder="Core..." style="font-size: 10px;">
+                <datalist id="listCircuitosCoreNovo">
+                    {% for circ in lista_circuitos_core %}
+                    <option data-id="{{ circ.id }}" value="{{ circ.name }}"></option>
+                    {% endfor %}
+                </datalist>
+            </div>
+            <div id="containerDeviceNovo" class="designador-field-novo d-none">
+                <input type="text" class="form-control form-control-sm shadow-none" list="listDevicesNovo" id="inputDeviceNovo" placeholder="Device..." style="font-size: 10px;">
+                <input type="hidden" name="device_id" id="hiddenDeviceIdNovo">
+                <datalist id="listDevicesNovo">
+                    {% for dev in lista_devices %}
+                    <option data-id="{{ dev.id }}" value="{{ dev.name }} ({{ dev.site.name }})"></option>
+                    {% endfor %}
+                </datalist>
+            </div>
+            <input type="hidden" name="circuit_id" id="hiddenCircuitoIdNovo">
         </div>
     </div>
 
-    <!-- Seção 6: Regiões Afetadas -->
-    <div id="containerRegionsNovo" class="border rounded p-2 mb-2" style="background-color: rgba(0,0,0,0.02);">
-        <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Cidades/Regiões
-            Afetadas</label>
-        <div id="selectedRegionsTags" class="d-flex flex-wrap gap-1 mb-1" style="min-height: 20px;"></div>
-        <div class="input-group input-group-sm mb-1">
-            <span class="input-group-text bg-transparent border-end-0" style="font-size: 10px;"><i
-                    class="bi bi-search"></i></span>
-            <input type="text" id="filterRegions" class="form-control form-control-sm border-start-0 ps-0 shadow-none"
-                placeholder="Filtrar cidades..." style="font-size: 11px;">
-        </div>
-        <div class="border rounded p-2 bg-body-tertiary overflow-auto" id="containerRegionsList"
-            style="max-height: 100px;">
-            <div class="row g-2">
-                {% for region in lista_regioes %}
-                <div class="col-6 region-item">
-                    <div class="form-check">
-                        <input class="form-check-input region-checkbox" type="checkbox" name="affected_regions"
-                            value="{{ region.id }}" id="regNovo_{{ region.id }}" data-name="{{ region.name }}">
-                        <label class="form-check-label" for="regNovo_{{ region.id }}"
-                            style="font-size: 10px; cursor: pointer;">
-                            {{ region.name }}
-                        </label>
-                    </div>
+    <!-- Seção de Descrição -->
+    <div class="mb-1">
+        <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 8px;">Descrição Automática / Detalhes <span class="text-danger">*</span></label>
+        <textarea name="description" id="textareaDescricaoNovo" class="form-control form-control-sm shadow-none" rows="1"
+            placeholder="Descreva o incidente..." style="font-size: 10px; resize: none; min-height: 32px;" required></textarea>
+    </div>
+
+    <!-- SEÇÃO GRUPADA: AFETAÇÃO (Campos dependentes) -->
+    <div id="sectionAfetacao" class="border rounded p-2 mb-1" style="background-color: rgba(0,0,0,0.015);">
+        <div class="row g-2 mb-1 align-items-end">
+            <div class="col-4">
+                <label class="form-label fw-bold text-muted text-uppercase mb-1 d-block text-center" style="font-size: 8px;">Status da Afetação</label>
+                <div class="btn-group w-100 shadow-sm" role="group">
+                    <input type="radio" class="btn-check" name="is_impact_active" id="impactoAtivoNovo" value="True" checked>
+                    <label class="btn btn-outline-danger btn-sm py-0" for="impactoAtivoNovo" style="font-size: 9px; height: 24px; line-height: 24px;">Ativa</label>
+                    <input type="radio" class="btn-check" name="is_impact_active" id="impactoInativoNovo" value="False">
+                    <label class="btn btn-outline-success btn-sm py-0" for="impactoInativoNovo" style="font-size: 9px; height: 24px; line-height: 24px;">Inativa</label>
                 </div>
-                {% endfor %}
+            </div>
+            <div class="col-4">
+                <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 8px;">SLA Inicial</label>
+                <select name="sla_id" id="selectSlaNovo" class="form-select form-select-sm shadow-none" style="font-size: 10px;">
+                    <option value="">Selecione...</option>
+                    {% for s in lista_slas %}
+                    <option value="{{ s.id }}" data-hours="{{ s.name|slice:':-1' }}" {% if s.name == '4h' %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-4">
+                <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 8px;">Segmento Cliente</label>
+                <select name="client_type_id" class="form-select form-select-sm shadow-none" style="font-size: 10px;">
+                    <option value="">Selecione...</option>
+                    {% for c in lista_clientes %}
+                    <option value="{{ c.id }}">{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="row g-2 mb-1">
+            <div class="col-4">
+                <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 8px;">Tipo de Impacto</label>
+                <select name="impact_type_id" class="form-select form-select-sm shadow-none" style="font-size: 10px;">
+                    <option value="">Selecione...</option>
+                    {% for t in lista_impacto_tipos %}
+                    <option value="{{ t.id }}">{{ t.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-4">
+                <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 8px;">Nível Impacto</label>
+                <select name="impact_level_id" class="form-select form-select-sm shadow-none" style="font-size: 10px;">
+                    <option value="">Selecione...</option>
+                    {% for l in lista_impacto_niveis %}
+                    <option value="{{ l.id }}">{{ l.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-4">
+                <label id="labelExpectedAt" class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 8px;">Previsão de Normalização</label>
+                <input type="datetime-local" name="expected_at" id="inputExpectedAt" class="form-control form-control-sm shadow-none" style="font-size: 10px;">
+            </div>
+        </div>
+
+        <!-- Regiões Afetadas -->
+        <div id="containerRegionsNovo" class="mt-1">
+            <div class="d-flex justify-content-between align-items-center mb-1 px-2 py-1 rounded border" style="background-color: rgba(0,0,0,0.025);">
+                <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 8px;">
+                    <i class="bi bi-geo-alt-fill me-1" style="color: #008891;"></i>Cidades Afetadas
+                </label>
+                <div class="input-group" style="width: 140px;">
+                    <span class="input-group-text py-0 px-2 bg-transparent border-end-0" style="font-size: 9px; border-color: rgba(0,0,0,0.1);"><i class="bi bi-search"></i></span>
+                    <input type="text" id="filterRegions" class="form-control form-control-sm border-start-0 shadow-none py-0 px-2"
+                        placeholder="Filtrar..." style="font-size: 10px; height: 22px; border-color: rgba(0,0,0,0.1);">
+                </div>
+            </div>
+            <div id="selectedRegionsTags" class="d-flex flex-wrap gap-1 mb-1" style="min-height: 14px;"></div>
+            <div class="border rounded p-1 bg-body-tertiary overflow-auto" id="containerRegionsList" style="max-height: 60px;">
+                <div class="row g-1">
+                    {% for region in lista_regioes %}
+                    <div class="col-4 region-item">
+                        <div class="form-check mb-0" style="min-height: auto;">
+                            <input class="form-check-input region-checkbox" type="checkbox" name="affected_regions"
+                                value="{{ region.id }}" id="regNovo_{{ region.id }}" data-name="{{ region.name }}" style="width: 12px; height: 12px; margin-top: 0.25rem;">
+                            <label class="form-check-label" for="regNovo_{{ region.id }}" style="font-size: 9px; cursor: pointer; line-height: 1.5;">
+                                {{ region.name }}
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </div>
@@ -326,6 +285,7 @@
         function toggleDesignadores() {
             if (!selectTipo) return;
             const tipoNome = selectTipo.options[selectTipo.selectedIndex].text;
+            const defaultContainer = document.getElementById('containerDefaultNovo');
 
             // Oculta todos e remove obrigatoriedade
             document.querySelectorAll('.designador-field-novo').forEach(el => {
@@ -349,6 +309,9 @@
                 container.classList.remove('d-none');
                 const inp = container.querySelector('input[type="text"]');
                 if (inp) inp.setAttribute('required', 'required');
+            } else if (defaultContainer) {
+                // Se nenhum selecionado, volta pro default
+                defaultContainer.classList.remove('d-none');
             }
         }
 
@@ -375,6 +338,7 @@
         inputOccured.addEventListener('change', atualizarEtrPeloSla);
 
         function toggleImpacto() {
+            const section = document.getElementById('sectionAfetacao');
             const impactType = document.querySelector('select[name="impact_type_id"]');
             const impactLevel = document.querySelector('select[name="impact_level_id"]');
             const clientType = document.querySelector('select[name="client_type_id"]');
@@ -387,8 +351,10 @@
                 if (selectSla) selectSla.removeAttribute('disabled');
                 if (clientType) clientType.removeAttribute('disabled');
                 labelETR.innerHTML = 'Previsão de Normalização <span class="text-danger">*</span>';
-                containerRegions.style.opacity = '1';
-                containerRegions.style.pointerEvents = 'auto';
+                if (section) {
+                    section.style.opacity = '1';
+                    section.style.pointerEvents = 'auto';
+                }
                 atualizarEtrPeloSla();
             } else {
                 inputETR.setAttribute('disabled', 'disabled');
@@ -415,8 +381,10 @@
                     clientType.setAttribute('disabled', 'disabled');
                 }
                 labelETR.innerHTML = 'Previsão de Normalização';
-                containerRegions.style.opacity = '0.5';
-                containerRegions.style.pointerEvents = 'none';
+                if (section) {
+                    section.style.opacity = '0.5';
+                    // Deixamos pointer-events auto para permitir clicar no botão de rádio novamente
+                }
                 checkboxes.forEach(cb => cb.checked = false);
                 updateTags();
             }
