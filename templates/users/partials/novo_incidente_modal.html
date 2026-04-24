@@ -7,8 +7,9 @@
             <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">PROTOCOLO MK <span class="text-danger">*</span></label>
             <input type="text" name="mk_protocol" class="form-control form-control-sm shadow-none"
                 placeholder="Ex: 1234.5" style="font-size: 11px;" required pattern="\d{4}\.\d{1,5}"
-                title="Formato esperado: XXXX.Y (4 dígitos + ponto + 1 a 5 dígitos)">
-            <small class="text-muted" style="font-size: 8px;">Padrão: 1234.5 até 1234.54321</small>
+                maxlength="10"
+                title="Formato esperado: XXXX.Y (Máximo 10 caracteres, incluindo o ponto)">
+            <small class="text-muted" style="font-size: 8px;">Máximo 10 caracteres (ex: 1234.54321)</small>
             <div id="protocol-msg" class="mt-1"></div>
         </div>
         <div class="col-6">
