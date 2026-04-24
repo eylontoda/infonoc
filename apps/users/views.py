@@ -657,10 +657,10 @@ async def editar_incidente_ajax(request, protocolo):
                 # Listas de infra categorizadas (Apenas ATIVOS)
                 'lista_sites': list(Site.objects.filter(netbox_status__slug='active').order_by('name')),
                 
-                'lista_circuitos_backbone': list(Circuit.objects.filter(
+                'lista_circuitos_backbone': [{'id': c.id, 'name': c.name, 'site_a_region_name': c.site_a.region.name if c.site_a and c.site_a.region else "", 'site_z_region_name': c.site_z.region.name if c.site_z and c.site_z.region else ""} for c in Circuit.objects.select_related('site_a__region', 'site_z__region').filter(
                     netbox_status__slug='active',
                     type__slug__in=['ce', 'rede-backbone-terceiros', 'rede-backbone-prpria']
-                ).order_by('name')),
+                ).order_by('name')],
                 
                 'lista_circuitos_core': list(Circuit.objects.filter(
                     netbox_status__slug='active',
@@ -990,10 +990,10 @@ async def novo_incidente_ajax(request):
 
                 # Infra para Designador
                 'lista_sites': list(Site.objects.filter(netbox_status__slug='active').order_by('name')),
-                'lista_circuitos_backbone': list(Circuit.objects.filter(
+                'lista_circuitos_backbone': [{'id': c.id, 'name': c.name, 'site_a_region_name': c.site_a.region.name if c.site_a and c.site_a.region else "", 'site_z_region_name': c.site_z.region.name if c.site_z and c.site_z.region else ""} for c in Circuit.objects.select_related('site_a__region', 'site_z__region').filter(
                     netbox_status__slug='active',
                     type__slug__in=['ce', 'rede-backbone-terceiros', 'rede-backbone-prpria']
-                ).order_by('name')),
+                ).order_by('name')],
                 'lista_circuitos_core': list(Circuit.objects.filter(
                     netbox_status__slug='active',
                     type__slug__in=['capacidade-ip', 'ptt']
@@ -1176,7 +1176,7 @@ async def novo_incidente_ajax(request):
             return HttpResponse(f"<div class='alert alert-danger m-3'>{result}</div>")
 
         context = await get_context()
-        return render(request, 'users/partials/novo_incidente_modal.html', context)
+        return await sync_to_async(render)(request, 'users/partials/novo_incidente_modal.html', context)
 
     except Exception as e:
         error_msg = f"<strong>Erro:</strong> {str(e)}<br><small>{traceback.format_exc()}</small>"

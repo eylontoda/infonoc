@@ -38,7 +38,7 @@
         <div class="col-4">
             <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Sintoma Reportado
                 <span class="text-danger">*</span></label>
-            <select name="reported_symptom_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;"
+            <select name="reported_symptom_id" id="selectSintomaNovo" class="form-select form-select-sm shadow-none" style="font-size: 11px;"
                 required>
                 <option value="">Selecione...</option>
                 {% for s in lista_sintomas %}
@@ -81,7 +81,7 @@
                 id="inputCircuitoBackboneNovo" placeholder="Pesquisar Circuito Backbone..." style="font-size: 11px;">
             <datalist id="listCircuitosBackboneNovo">
                 {% for circ in lista_circuitos_backbone %}
-                <option data-id="{{ circ.id }}" value="{{ circ.name }}"></option>
+                <option data-id="{{ circ.id }}" value="{{ circ.name }}" data-site-a="{{ circ.site_a_region_name }}" data-site-z="{{ circ.site_z_region_name }}"></option>
                 {% endfor %}
             </datalist>
         </div>
@@ -183,7 +183,7 @@
     <div class="mb-1">
         <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Descrição do Evento /
             Designador <span class="text-danger">*</span></label>
-        <textarea name="description" class="form-control form-control-sm shadow-none" rows="2"
+        <textarea name="description" id="textareaDescricaoNovo" class="form-control form-control-sm shadow-none" rows="2"
             placeholder="Descreva o incidente..." style="font-size: 11px; resize: none;" required></textarea>
     </div>
 
@@ -463,6 +463,59 @@
         }
 
         checkboxes.forEach(cb => cb.addEventListener('change', updateTags));
+
+        // --- LÓGICA DE DESCRIÇÃO AUTOMÁTICA ---
+        const textareaDesc = document.getElementById('textareaDescricaoNovo');
+        const selectSintoma = document.getElementById('selectSintomaNovo');
+
+        function updateAutomaticDescription() {
+            if (!selectTipo || !selectSintoma || !textareaDesc) return;
+            
+            const tipoText = selectTipo.options[selectTipo.selectedIndex].text.trim();
+            const sintomaText = selectSintoma.value ? selectSintoma.options[selectSintoma.selectedIndex].text.trim() : "";
+            
+            let designadorText = "";
+            let extraInfo = "";
+
+            if (tipoText === 'Site') {
+                designadorText = document.getElementById('inputSiteNovo').value.trim();
+            } else if (tipoText === 'Backbone') {
+                const inputBackbone = document.getElementById('inputCircuitoBackboneNovo');
+                designadorText = inputBackbone.value.trim();
+                
+                const list = document.getElementById('listCircuitosBackboneNovo');
+                const opt = Array.from(list.options).find(o => o.value === designadorText);
+                if (opt) {
+                    const cityA = opt.dataset.siteA || "";
+                    const cityZ = opt.dataset.siteZ || "";
+                    if (cityA && cityZ) extraInfo = ` entre ${cityA} e ${cityZ}`;
+                    else if (cityA || cityZ) extraInfo = ` em ${cityA || cityZ}`;
+                }
+            } else if (tipoText === 'Core') {
+                designadorText = document.getElementById('inputCircuitoCoreNovo').value.trim();
+            } else if (tipoText === 'R.A.' || tipoText === 'Equipamento') {
+                designadorText = document.getElementById('inputDeviceNovo').value.trim();
+            }
+
+            if (tipoText && designadorText && sintomaText && tipoText !== 'Selecione...') {
+                let prefixo = tipoText;
+                if (tipoText === 'R.A.' || tipoText === 'Equipamento') prefixo = 'Equipamento';
+                
+                const novaDesc = `Incidente de ${prefixo}: ${designadorText}${extraInfo} - ${sintomaText}`;
+                if (textareaDesc.value !== novaDesc) {
+                    textareaDesc.value = novaDesc;
+                }
+            }
+        }
+
+        [selectTipo, selectSintoma].forEach(el => el.addEventListener('change', updateAutomaticDescription));
+        ['inputSiteNovo', 'inputCircuitoBackboneNovo', 'inputCircuitoCoreNovo', 'inputDeviceNovo'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', updateAutomaticDescription);
+                el.addEventListener('change', updateAutomaticDescription);
+            }
+        });
 
         toggleDesignadores();
         toggleImpacto();
