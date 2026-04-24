@@ -8,169 +8,249 @@
           hx-swap="innerHTML">
         {% csrf_token %}
 
-        <!-- Tipo e Origem -->
+        <!-- Seção 1: Identificação -->
         <div class="row g-2 mb-1">
             <div class="col-6">
-                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Tipo de Incidente</label>
-                <select class="form-select form-select-sm shadow-none" name="incident_type_id" id="selectTipoMestre" required style="font-size: 11px;">
-                    {% for tipo in lista_tipos %}
-                        <option value="{{ tipo.id }}" {% if incident.incident_type_id == tipo.id %}selected{% endif %}>{{ tipo.name }}</option>
-                    {% endfor %}
-                </select>
+                <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Protocolo MK <span class="text-danger">*</span></label>
+                <input type="text" name="mk_protocol" id="inputProtocolMestre" class="form-control form-control-sm shadow-none" 
+                    value="{{ incident.mk_protocol }}" style="font-size: 11px;" required
+                    pattern="\d{4}\.\d{1,5}" maxlength="10"
+                    title="Formato esperado: XXXX.Y (Máximo 10 caracteres)">
+                <div id="protocol-msg-mestre" class="mt-0"></div>
             </div>
             <div class="col-6">
-                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Fonte de Detecção</label>
-                <select class="form-select form-select-sm shadow-none" name="detection_source_id" style="font-size: 11px;">
+                <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Fonte de Detecção</label>
+                <select name="detection_source_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
                     <option value="">Selecione...</option>
-                    {% for fonte in lista_fontes %}
-                        <option value="{{ fonte.id }}" 
-                            {% if incident.detection_source_id == fonte.id or not incident.detection_source_id and 'Zabbix' in fonte.name %}selected{% endif %}>
-                            {{ fonte.name }}
-                        </option>
+                    {% for f in lista_fontes %}
+                    <option value="{{ f.id }}" {% if incident.detection_source_id == f.id %}selected{% endif %}>{{ f.name }}</option>
                     {% endfor %}
                 </select>
             </div>
         </div>
-
-        <!-- Designador Dinâmico Searchable -->
-        <div class="mb-1">
-            <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Designador (Localidade/Circuito)</label>
-            
-            <!-- Sites -->
-            <div id="containerSite" class="designador-field d-none">
-                <input type="text" class="form-control form-control-sm shadow-none mb-1" list="listSites" id="inputSite" placeholder="Pesquisar Site..." style="font-size: 11px;" value="{% if incident.site %}{{ incident.site.facility }} - {{ incident.site.name }}{% endif %}">
-                <input type="hidden" name="site_id" id="hiddenSiteId" value="{{ incident.site_id }}">
-                <datalist id="listSites">
-                    {% for site in lista_sites %}
-                        <option data-id="{{ site.id }}" value="{{ site.facility }} - {{ site.name }}"></option>
-                    {% endfor %}
-                </datalist>
-            </div>
-
-            <!-- Circuitos Backbone -->
-            <div id="containerCircuitoBackbone" class="designador-field d-none">
-                <input type="text" class="form-control form-control-sm shadow-none mb-1" list="listCircuitosBackbone" id="inputCircuitoBackbone" placeholder="Pesquisar Circuito Backbone..." style="font-size: 11px;" value="{% if incident.incident_type.name == 'Backbone' %}{{ incident.circuit.name }}{% endif %}">
-                <datalist id="listCircuitosBackbone">
-                    {% for circ in lista_circuitos_backbone %}
-                    <option data-id="{{ circ.id }}" value="{{ circ.name }}" data-site-a="{{ circ.site_a_region_name }}" data-site-z="{{ circ.site_z_region_name }}"></option>
-                    {% endfor %}
-                </datalist>
-            </div>
-
-            <!-- Circuitos Core -->
-            <div id="containerCircuitoCore" class="designador-field d-none">
-                <input type="text" class="form-control form-control-sm shadow-none mb-1" list="listCircuitosCore" id="inputCircuitoCore" placeholder="Pesquisar Circuito Core..." style="font-size: 11px;" value="{% if incident.incident_type.name == 'Core' %}{{ incident.circuit.name }}{% endif %}">
-                <datalist id="listCircuitosCore">
-                    {% for circ in lista_circuitos_core %}
-                        <option data-id="{{ circ.id }}" value="{{ circ.name }}"></option>
-                    {% endfor %}
-                </datalist>
-            </div>
-            
-            <!-- Campo oculto compartilhado para Circuitos -->
-            <input type="hidden" name="circuit_id" id="hiddenCircuitoId" value="{{ incident.circuit_id }}">
-
-            <!-- Devices -->
-            <div id="containerDevice" class="designador-field d-none">
-                <input type="text" class="form-control form-control-sm shadow-none mb-1" list="listDevices" id="inputDevice" placeholder="Pesquisar Device..." style="font-size: 11px;" value="{% if incident.device %}{{ incident.device.name }} ({{ incident.device.site.name }}){% endif %}">
-                <input type="hidden" name="device_id" id="hiddenDeviceId" value="{{ incident.device_id }}">
-                <datalist id="listDevices">
-                    {% for dev in lista_devices %}
-                        <option data-id="{{ dev.id }}" value="{{ dev.name }} ({{ dev.site.name }})"></option>
-                    {% endfor %}
-                </datalist>
-            </div>
-            <small class="text-muted d-block mt-1" style="font-size: 9px;"><i class="bi bi-info-circle me-1"></i> Digite para filtrar a lista</small>
-        </div>
-
-        <!-- Cliente e SLA -->
         <div class="row g-2 mb-1">
             <div class="col-6">
-                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Tipo de Cliente</label>
-                <select class="form-select form-select-sm shadow-none" name="client_type_id" style="font-size: 11px;">
-                    {% for cli_type in lista_tipos_cliente %}
-                        <option value="{{ cli_type.id }}" {% if incident.client_type_id == cli_type.id %}selected{% endif %}>{{ cli_type.name }}</option>
+                <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Tipo <span class="text-danger">*</span></label>
+                <select name="incident_type_id" id="selectTipoMestre" class="form-select form-select-sm shadow-none"
+                    style="font-size: 11px;" required>
+                    <option value="">Selecione...</option>
+                    {% for t in lista_tipos %}
+                    <option value="{{ t.id }}" {% if incident.incident_type_id == t.id %}selected{% endif %}>{{ t.name }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="col-6">
-                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">SLA Vigente</label>
-                <select class="form-select form-select-sm shadow-none" name="sla_id" style="font-size: 11px;">
-                    {% for sla in lista_slas %}
-                        <option value="{{ sla.id }}" {% if incident.sla_id == sla.id %}selected{% endif %}>{{ sla.name }}</option>
+                <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Sintoma <span class="text-danger">*</span></label>
+                <select name="reported_symptom_id" id="selectSintomaMestre" class="form-select form-select-sm shadow-none" style="font-size: 11px;"
+                    required>
+                    <option value="">Selecione...</option>
+                    {% for s in lista_sintomas %}
+                    <option value="{{ s.id }}" {% if incident.reported_symptom_id == s.id %}selected{% endif %}>{{ s.name }}</option>
                     {% endfor %}
                 </select>
             </div>
         </div>
 
-        <!-- Sintoma Reportado -->
-        <div class="mb-1">
-            <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Sintoma Reportado</label>
-            <select class="form-select form-select-sm shadow-none" name="reported_symptom_id" id="selectSintomaMestre" style="font-size: 11px;">
-                <option value="">Selecione...</option>
-                {% for sint in lista_sintomas %}
-                    <option value="{{ sint.id }}" {% if incident.reported_symptom_id == sint.id %}selected{% endif %}>{{ sint.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <!-- Datas -->
+        <!-- Seção 2: Infra e Tempo -->
         <div class="row g-2 mb-1">
             <div class="col-6">
-                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Data de Ocorrência</label>
-                <input type="datetime-local" class="form-control form-control-sm shadow-none" name="occured_at" value="{{ incident.occured_at|date:'Y-m-d\TH:i' }}" style="font-size: 11px;">
+                <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Início Ocorrência <span class="text-danger">*</span></label>
+                <input type="datetime-local" name="occured_at" id="inputOccuredMestre"
+                    class="form-control form-control-sm shadow-none" value="{{ incident.occured_at|date:'Y-m-d\TH:i' }}"
+                    style="font-size: 11px;" required>
             </div>
             <div class="col-6">
-                <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Previsão de Normalização</label>
-                <input type="datetime-local" class="form-control form-control-sm shadow-none" name="expected_at" value="{{ incident.expected_at|date:'Y-m-d\TH:i' }}" style="font-size: 11px;">
-            </div>
-        </div>
-
-        <!-- Descrição -->
-        <div class="mb-1">
-            <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Descrição do Evento</label>
-            <textarea class="form-control form-control-sm shadow-none" name="description" id="textareaDescricaoMestre" rows="3" style="font-size: 11px;">{{ incident.description }}</textarea>
-        </div>
-
-        <!-- Regiões Afetadas -->
-        <div class="mb-1">
-            <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Cidades/Regiões Afetadas</label>
-            
-            <!-- [NOVO] Container de Tags Selecionadas -->
-            <div id="selectedRegionsTags" class="d-flex flex-wrap gap-1 mb-1" style="min-height: 20px;">
-                <!-- Tags serão inseridas aqui via JS -->
-            </div>
-
-            <!-- [NOVO] Filtro de Texto -->
-            <div class="input-group input-group-sm mb-1">
-                <span class="input-group-text bg-transparent border-end-0" style="font-size: 10px;"><i class="bi bi-search"></i></span>
-                <input type="text" id="filterRegions" class="form-control form-control-sm border-start-0 ps-0 shadow-none" placeholder="Filtrar cidades..." style="font-size: 11px;">
-            </div>
-
-            <div class="border rounded p-2 bg-body-tertiary overflow-auto" id="containerRegionsList" style="max-height: 140px;">
-                {% for reg in lista_regioes %}
-                <div class="form-check region-item">
-                    <input class="form-check-input region-checkbox" type="checkbox" name="affected_regions" value="{{ reg.id }}" id="reg{{ reg.id }}" data-name="{{ reg.name }}"
-                           {% if reg in incident.affected_regions.all %}checked{% endif %}>
-                    <label class="form-check-label text-muted" for="reg{{ reg.id }}" style="font-size: 10px;">
-                        {{ reg.name }}
-                    </label>
+                <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Designador <span class="text-danger">*</span></label>
+                <div id="containerDefaultMestre" class="designador-field-mestre">
+                    <input type="text" class="form-control form-control-sm shadow-none" placeholder="Aguardando tipo..." style="font-size: 11px;" disabled>
                 </div>
-                {% endfor %}
+                <!-- Sites -->
+                <div id="containerSiteMestre" class="designador-field-mestre d-none">
+                    <input type="text" class="form-control form-control-sm shadow-none" list="listSitesMestre" id="inputSiteMestre" placeholder="Site..." style="font-size: 11px;" value="{{ incident.site.name }}">
+                    <input type="hidden" name="site_id" id="hiddenSiteIdMestre" value="{{ incident.site_id }}">
+                    <datalist id="listSitesMestre">
+                        {% for site in lista_sites %}
+                        <option data-id="{{ site.id }}" value="{{ site.name }}"></option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <!-- Backbone -->
+                <div id="containerCircuitoBackboneMestre" class="designador-field-mestre d-none">
+                    <input type="text" class="form-control form-control-sm shadow-none" list="listCircuitosBackboneMestre" id="inputCircuitoBackboneMestre" placeholder="Backbone..." style="font-size: 11px;" value="{{ incident.circuit.name }}">
+                    <datalist id="listCircuitosBackboneMestre">
+                        {% for circ in lista_circuitos_backbone %}
+                        <option data-id="{{ circ.id }}" value="{{ circ.name }}" data-site-a="{{ circ.site_a_full_name }}" data-site-z="{{ circ.site_z_full_name }}"></option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <!-- Core -->
+                <div id="containerCircuitoCoreMestre" class="designador-field-mestre d-none">
+                    <input type="text" class="form-control form-control-sm shadow-none" list="listCircuitosCoreMestre" id="inputCircuitoCoreMestre" placeholder="Core..." style="font-size: 11px;" value="{{ incident.circuit.name }}">
+                    <datalist id="listCircuitosCoreMestre">
+                        {% for circ in lista_circuitos_core %}
+                        <option data-id="{{ circ.id }}" value="{{ circ.name }}" data-provider="{{ circ.provider_name }}"></option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <!-- Devices -->
+                <div id="containerDeviceMestre" class="designador-field-mestre d-none">
+                    <input type="text" class="form-control form-control-sm shadow-none" list="listDevicesMestre" id="inputDeviceMestre" placeholder="Device..." style="font-size: 11px;" value="{{ incident.device.name }}">
+                    <input type="hidden" name="device_id" id="hiddenDeviceIdMestre" value="{{ incident.device_id }}">
+                    <datalist id="listDevicesMestre">
+                        {% for dev in lista_devices %}
+                        <option data-id="{{ dev.id }}" value="{{ dev.name }}" data-region="{{ dev.region_name }}"></option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <input type="hidden" name="circuit_id" id="hiddenCircuitoIdMestre" value="{{ incident.circuit_id }}">
             </div>
         </div>
 
-        <!-- Botão de Ação -->
+        <!-- Seção de Descrição -->
+        <div class="mb-1">
+            <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Descrição Automática / Detalhes <span class="text-danger">*</span></label>
+            <textarea name="description" id="textareaDescricaoMestre" class="form-control form-control-sm shadow-none" rows="2"
+                placeholder="Descreva o incidente..." style="font-size: 11px; resize: none; min-height: 48px;" required>{{ incident.description }}</textarea>
+        </div>
+
+        <!-- SEÇÃO GRUPADA: AFETAÇÃO -->
+        <div id="sectionAfetacaoMestre" class="border rounded p-2 mb-1" style="background-color: rgba(0,0,0,0.015);">
+            <div class="row g-2 mb-1 align-items-end">
+                <div class="col-4">
+                    <label class="form-label fw-bold text-muted text-uppercase mb-1 d-block text-center" style="font-size: 9px;">Status da Afetação</label>
+                    <div class="btn-group w-100 shadow-sm" role="group">
+                        <input type="radio" class="btn-check" name="is_impact_active" id="impactoAtivoMestre" value="True" {% if incident.is_impact_active %}checked{% endif %}>
+                        <label class="btn btn-outline-danger btn-sm py-0" for="impactoAtivoMestre" style="font-size: 11px; height: 24px; line-height: 24px;">Ativa</label>
+                        <input type="radio" class="btn-check" name="is_impact_active" id="impactoInativoMestre" value="False" {% if not incident.is_impact_active %}checked{% endif %}>
+                        <label class="btn btn-outline-success btn-sm py-0" for="impactoInativoMestre" style="font-size: 11px; height: 24px; line-height: 24px;">Inativa</label>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">SLA Inicial</label>
+                    <select name="sla_id" id="selectSlaMestre" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
+                        <option value="">Selecione...</option>
+                        {% for s in lista_slas %}
+                        <option value="{{ s.id }}" {% if incident.sla_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-4">
+                    <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Segmento Cliente</label>
+                    <select name="client_type_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
+                        <option value="">Selecione...</option>
+                        {% for c in lista_tipos_cliente %}
+                        <option value="{{ c.id }}" {% if incident.client_type_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="row g-2 mb-1">
+                <div class="col-4">
+                    <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Tipo de Impacto</label>
+                    <select name="impact_type_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
+                        <option value="">Selecione...</option>
+                        {% for t in lista_tipos_impacto %}
+                        <option value="{{ t.id }}" {% if incident.impact_type_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-4">
+                    <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Nível Impacto</label>
+                    <select name="impact_level_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
+                        <option value="">Selecione...</option>
+                        {% for l in lista_niveis_impacto %}
+                        <option value="{{ l.id }}" {% if incident.impact_level_id == l.id %}selected{% endif %}>{{ l.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-4">
+                    <label id="labelExpectedAtMestre" class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Previsão de Normalização</label>
+                    <input type="datetime-local" name="expected_at" id="inputExpectedMestre" class="form-control form-control-sm shadow-none" style="font-size: 11px;" value="{{ incident.expected_at|date:'Y-m-d\TH:i' }}">
+                </div>
+            </div>
+
+            <!-- Regiões Afetadas -->
+            <div id="containerRegionsMestre" class="mt-1">
+                <div class="d-flex justify-content-between align-items-center mb-1 px-2 py-1 rounded border" style="background-color: rgba(0,0,0,0.025);">
+                    <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">
+                        <i class="bi bi-geo-alt-fill me-1" style="color: #008891;"></i>Cidades Afetadas
+                    </label>
+                    <div class="input-group" style="width: 140px;">
+                        <span class="input-group-text py-0 px-2 bg-transparent border-end-0" style="font-size: 10px; border-color: rgba(0,0,0,0.1);"><i class="bi bi-search"></i></span>
+                        <input type="text" id="filterRegionsMestre" class="form-control form-control-sm border-start-0 shadow-none py-0 px-2"
+                            placeholder="Filtrar..." style="font-size: 11px; height: 22px; border-color: rgba(0,0,0,0.1);">
+                    </div>
+                </div>
+                <div id="selectedRegionsTagsMestre" class="d-flex flex-wrap gap-1 mb-1" style="min-height: 14px;"></div>
+                <div class="border rounded p-1 bg-body-tertiary overflow-auto" id="containerRegionsListMestre" style="max-height: 80px;">
+                    <div class="row g-1">
+                        {% for region in lista_regioes %}
+                        <div class="col-4 region-item-mestre">
+                            <div class="form-check mb-0" style="min-height: auto;">
+                                <input class="form-check-input region-checkbox-mestre" type="checkbox" name="affected_regions"
+                                    value="{{ region.id }}" id="regEdit_{{ region.id }}" data-name="{{ region.name }}" 
+                                    {% if region in incident.affected_regions.all %}checked{% endif %}
+                                    style="width: 12px; height: 12px; margin-top: 0.25rem;">
+                                <label class="form-check-label" for="regEdit_{{ region.id }}" style="font-size: 10px; cursor: pointer; line-height: 1.5;">
+                                    {{ region.name }}
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <button type="submit" class="btn btn-warning w-100 fw-bold shadow-sm d-flex justify-content-center align-items-center gap-2" style="font-size: 12px; padding: 10px;">
             <i class="bi bi-save2-fill"></i> Salvar Alterações Estruturais
         </button>
+    </form>
     </form>
 </div>
 
 <script>
     (function() {
         const selectTipo = document.getElementById('selectTipoMestre');
+        const selectSintoma = document.getElementById('selectSintomaMestre');
+        const textareaDesc = document.getElementById('textareaDescricaoMestre');
         
+        // --- [NOVO] Validação de Protocolo ---
+        const inputProtocol = document.getElementById('inputProtocolMestre');
+        const protocolMsg = document.getElementById('protocol-msg-mestre');
+        const originalProtocol = "{{ incident.mk_protocol }}";
+
+        if (inputProtocol) {
+            inputProtocol.addEventListener('input', function() {
+                const val = this.value.trim();
+                if (val === originalProtocol) {
+                    protocolMsg.innerHTML = "";
+                    return;
+                }
+                if (val.length >= 6) {
+                    fetch(`/check-protocol/?protocol=${val}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.exists) {
+                                protocolMsg.innerHTML = `
+                                    <div class="alert alert-warning py-1 px-2 mb-0 mt-1" style="font-size: 10px; border-left: 3px solid #ffc107;">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i> Protocolo já existe.
+                                        <a href="javascript:void(0)" class="fw-bold text-decoration-underline" style="color: #856404;" 
+                                           hx-get="/incidents/detalhe-ajax/${val}/" hx-target="#conteudoDetalhes" 
+                                           data-bs-toggle="offcanvas" data-bs-target="#offcanvasDetalhes">Ver Incidente ${val}</a>
+                                    </div>`;
+                                htmx.process(protocolMsg);
+                            } else {
+                                protocolMsg.innerHTML = "";
+                            }
+                        });
+                } else {
+                    protocolMsg.innerHTML = "";
+                }
+            });
+        }
+
         // Função para sincronizar input (datalist) com o ID real (hidden)
         function setupSync(inputId, listId, hiddenId) {
             const input = document.getElementById(inputId);
@@ -181,64 +261,147 @@
 
             input.addEventListener('input', function() {
                 const val = this.value;
-                const options = list.childNodes;
-                let found = false;
-                for (let i = 0; i < options.length; i++) {
-                    if (options[i].value === val) {
-                        hidden.value = options[i].getAttribute('data-id');
-                        found = true;
-                        break;
-                    }
+                const options = Array.from(list.options);
+                const opt = options.find(o => o.value === val);
+                if (opt) {
+                    hidden.value = opt.getAttribute('data-id');
+                } else {
+                    hidden.value = "";
                 }
-                if (!found) hidden.value = ""; // Limpa se não bater exato
             });
         }
 
-        setupSync('inputSite', 'listSites', 'hiddenSiteId');
-        setupSync('inputCircuitoBackbone', 'listCircuitosBackbone', 'hiddenCircuitoId');
-        setupSync('inputCircuitoCore', 'listCircuitosCore', 'hiddenCircuitoId');
-        setupSync('inputDevice', 'listDevices', 'hiddenDeviceId');
+        setupSync('inputSiteMestre', 'listSitesMestre', 'hiddenSiteIdMestre');
+        setupSync('inputCircuitoBackboneMestre', 'listCircuitosBackboneMestre', 'hiddenCircuitoIdMestre');
+        setupSync('inputCircuitoCoreMestre', 'listCircuitosCoreMestre', 'hiddenCircuitoIdMestre');
+        setupSync('inputDeviceMestre', 'listDevicesMestre', 'hiddenDeviceIdMestre');
 
         function toggleDesignadores() {
             if (!selectTipo) return;
             const tipoNome = selectTipo.options[selectTipo.selectedIndex].text;
             
             // Oculta todos
-            document.querySelectorAll('.designador-field').forEach(el => el.classList.add('d-none'));
+            document.querySelectorAll('.designador-field-mestre').forEach(el => el.classList.add('d-none'));
             
             // Mostra o relevante
             if (tipoNome === 'Site') {
-                document.getElementById('containerSite').classList.remove('d-none');
+                document.getElementById('containerSiteMestre').classList.remove('d-none');
             } else if (tipoNome === 'Backbone') {
-                document.getElementById('containerCircuitoBackbone').classList.remove('d-none');
+                document.getElementById('containerCircuitoBackboneMestre').classList.remove('d-none');
             } else if (tipoNome === 'Core') {
-                document.getElementById('containerCircuitoCore').classList.remove('d-none');
+                document.getElementById('containerCircuitoCoreMestre').classList.remove('d-none');
             } else if (tipoNome === 'R.A.' || tipoNome === 'Equipamento') {
-                document.getElementById('containerDevice').classList.remove('d-none');
+                document.getElementById('containerDeviceMestre').classList.remove('d-none');
+            } else {
+                document.getElementById('containerDefaultMestre').classList.remove('d-none');
+            }
+        }
+
+        function updateAutomaticDescription() {
+            if (!selectTipo || !selectSintoma || !textareaDesc) return;
+            
+            const tipoText = selectTipo.options[selectTipo.selectedIndex].text.trim();
+            const sintomaText = selectSintoma.value ? selectSintoma.options[selectSintoma.selectedIndex].text.trim() : "";
+            
+            if (!tipoText || tipoText === 'Selecione...') return;
+
+            let designadorText = "";
+            let extraInfo = "";
+            let prefixoDesc = "Incidente de " + tipoText;
+            const baseSintoma = sintomaText || "Incidente";
+
+            if (tipoText === 'Site') {
+                designadorText = document.getElementById('inputSiteMestre').value.trim();
+                prefixoDesc = `Incidente de Site: ${designadorText}`;
+                if (sintomaText) prefixoDesc += ` - ${sintomaText}`;
+            } else if (tipoText === 'Backbone') {
+                const inputBackbone = document.getElementById('inputCircuitoBackboneMestre');
+                const val = inputBackbone.value.trim();
+                const list = document.getElementById('listCircuitosBackboneMestre');
+                if (list) {
+                    const opt = Array.from(list.options).find(o => o.value === val);
+                    if (opt) {
+                        const cityA = opt.dataset.siteA || "";
+                        const cityZ = opt.dataset.siteZ || "";
+                        if (cityA && cityZ) extraInfo = ` em ${cityA} x ${cityZ}`;
+                        else if (cityA || cityZ) extraInfo = ` em ${cityA || cityZ}`;
+                        designadorText = "ACTIVE"; 
+                    }
+                }
+                prefixoDesc = `${baseSintoma} de backbone${extraInfo}`;
+            } else if (tipoText === 'Core') {
+                const inputCore = document.getElementById('inputCircuitoCoreMestre');
+                const val = inputCore.value.trim();
+                const list = document.getElementById('listCircuitosCoreMestre');
+                if (list) {
+                    const opt = Array.from(list.options).find(o => o.value === val);
+                    if (opt) {
+                        const provider = opt.dataset.provider || "N/D";
+                        designadorText = "ACTIVE";
+                        prefixoDesc = `${baseSintoma} de Core IP em ${val} - ${provider}`;
+                    }
+                }
+            } else if (tipoText === 'Equipamento') {
+                designadorText = document.getElementById('inputDeviceMestre').value.trim();
+                if (designadorText) {
+                    prefixoDesc = `${baseSintoma} de equipamento ${designadorText}`;
+                }
+            } else if (tipoText === 'R.A.') {
+                const inputRA = document.getElementById('inputDeviceMestre');
+                const val = inputRA.value.trim();
+                const list = document.getElementById('listDevicesMestre');
+                if (list) {
+                    const opt = Array.from(list.options).find(o => o.value === val);
+                    if (opt) {
+                        const region = opt.dataset.region || "N/D";
+                        designadorText = "ACTIVE";
+                        prefixoDesc = `${baseSintoma} de R.A em ${region} - ${val}: (COMPLEMENTAR COM SLOT E PON)`;
+                    }
+                }
+            }
+
+            if (designadorText) {
+                if (textareaDesc.value !== prefixoDesc) {
+                    textareaDesc.value = prefixoDesc;
+                }
             }
         }
 
         if (selectTipo) {
-            selectTipo.addEventListener('change', toggleDesignadores);
+            selectTipo.addEventListener('change', () => {
+                toggleDesignadores();
+                updateAutomaticDescription();
+            });
             toggleDesignadores();
         }
+        if (selectSintoma) {
+            selectSintoma.addEventListener('change', updateAutomaticDescription);
+        }
 
-        // --- [NOVO] Lógica de Regiões Afetadas ---
-        const filterInput = document.getElementById('filterRegions');
-        const tagsContainer = document.getElementById('selectedRegionsTags');
-        const checkboxes = document.querySelectorAll('.region-checkbox');
-        const regionItems = document.querySelectorAll('.region-item');
+        ['inputSiteMestre', 'inputCircuitoBackboneMestre', 'inputCircuitoCoreMestre', 'inputDeviceMestre'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', updateAutomaticDescription);
+            }
+        });
+
+        // --- Lógica de Regiões Afetadas ---
+        const filterInput = document.getElementById('filterRegionsMestre');
+        const tagsContainer = document.getElementById('selectedRegionsTagsMestre');
+        const checkboxes = document.querySelectorAll('.region-checkbox-mestre');
+        const regionItems = document.querySelectorAll('.region-item-mestre');
 
         function updateTags() {
             tagsContainer.innerHTML = '';
             checkboxes.forEach(cb => {
                 if (cb.checked) {
                     const tag = document.createElement('span');
-                    tag.className = 'badge bg-primary d-flex align-items-center gap-1 py-1 px-2';
+                    tag.className = 'badge d-flex align-items-center gap-1 py-1 px-2';
                     tag.style.fontSize = '9px';
                     tag.style.cursor = 'pointer';
                     tag.style.borderRadius = '12px';
-                    tag.style.backgroundColor = '#60c4b0 !important'; // Cyan!
+                    tag.style.backgroundColor = '#008891';
+                    tag.style.color = 'white';
                     tag.innerHTML = `${cb.dataset.name} <i class="bi bi-x-circle-fill"></i>`;
                     tag.onclick = () => {
                         cb.checked = false;
@@ -254,76 +417,24 @@
                 const term = this.value.toLowerCase();
                 regionItems.forEach(item => {
                     const label = item.querySelector('label').innerText.toLowerCase();
-                    if (label.includes(term)) {
-                        item.classList.remove('d-none');
-                    } else {
-                        item.classList.add('d-none');
-                    }
+                    item.classList.toggle('d-none', !label.includes(term));
                 });
             });
         }
 
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', updateTags);
-        });
-
-        // Inicializar tags se já houver selecionados
+        checkboxes.forEach(cb => cb.addEventListener('change', updateTags));
         updateTags();
 
-        // --- LÓGICA DE DESCRIÇÃO AUTOMÁTICA ---
-        const textareaDesc = document.getElementById('textareaDescricaoMestre');
-        const selectSintoma = document.getElementById('selectSintomaMestre');
-
-        function updateAutomaticDescription() {
-            if (!selectTipo || !selectSintoma || !textareaDesc) return;
-            
-            const tipoText = selectTipo.options[selectTipo.selectedIndex].text.trim();
-            const sintomaText = selectSintoma.value ? selectSintoma.options[selectSintoma.selectedIndex].text.trim() : "";
-            
-            let designadorText = "";
-            let extraInfo = "";
-
-            if (tipoText === 'Site') {
-                designadorText = document.getElementById('inputSite').value.trim();
-            } else if (tipoText === 'Backbone') {
-                const inputBackbone = document.getElementById('inputCircuitoBackbone');
-                designadorText = inputBackbone.value.trim();
-                
-                const list = document.getElementById('listCircuitosBackbone');
-                const opt = Array.from(list.options).find(o => o.value === designadorText);
-                if (opt) {
-                    const cityA = opt.dataset.siteA || "";
-                    const cityZ = opt.dataset.siteZ || "";
-                    if (cityA && cityZ) extraInfo = ` entre ${cityA} e ${cityZ}`;
-                    else if (cityA || cityZ) extraInfo = ` em ${cityA || cityZ}`;
-                }
-            } else if (tipoText === 'Core') {
-                designadorText = document.getElementById('inputCircuitoCore').value.trim();
-            } else if (tipoText === 'R.A.' || tipoText === 'Equipamento') {
-                designadorText = document.getElementById('inputDevice').value.trim();
-            }
-
-            if (tipoText && designadorText && sintomaText && tipoText !== 'Selecione...') {
-                let prefixo = tipoText;
-                if (tipoText === 'R.A.' || tipoText === 'Equipamento') prefixo = 'Equipamento';
-                
-                const novaDesc = `Incidente de ${prefixo}: ${designadorText}${extraInfo} - ${sintomaText}`;
-                if (textareaDesc.value !== novaDesc) {
-                    textareaDesc.value = novaDesc;
-                }
-            }
+        // Lógica de Ativa/Inativa Opacidade
+        const radiosImpacto = document.querySelectorAll('input[name="is_impact_active"]');
+        const sectionAfetacao = document.getElementById('sectionAfetacaoMestre');
+        function updateImpactOpacity() {
+            const isInativo = document.getElementById('impactoInativoMestre').checked;
+            sectionAfetacao.style.opacity = isInativo ? '0.5' : '1';
         }
+        radiosImpacto.forEach(r => r.addEventListener('change', updateImpactOpacity));
+        updateImpactOpacity();
 
-        [selectTipo, selectSintoma].forEach(el => el.addEventListener('change', updateAutomaticDescription));
-        ['inputSite', 'inputCircuitoBackbone', 'inputCircuitoCore', 'inputDevice'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.addEventListener('input', updateAutomaticDescription);
-                el.addEventListener('change', updateAutomaticDescription);
-            }
-        });
-
-        updateTags();
     })();
 </script>
 
