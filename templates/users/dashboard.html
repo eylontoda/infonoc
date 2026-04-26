@@ -4,17 +4,48 @@
 {% block title %}Dashboard - Sea Telecom{% endblock %}
 
 {% block content %}
+
+<!-- Offcanvas: Detalhes do Chamado -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasDetalhes" aria-labelledby="offcanvasDetalhesLabel" style="width: 600px;">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title fw-bold" id="offcanvasDetalhesLabel">
+            <i class="bi bi-info-circle-fill me-2"></i>Detalhes do Chamado
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body" id="conteudoDetalhes" style="font-size:11px; overflow-y:auto;">
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted" style="font-size:11px;">Carregando dados...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Offcanvas: Inserir Atualização -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasAtualizacao" aria-labelledby="offcanvasAtualizacaoLabel" style="width: 600px;">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title fw-bold" id="offcanvasAtualizacaoLabel">
+            <i class="bi bi-journal-plus me-2 text-primary"></i>Inserir Atualização
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body" id="conteudoAtualizacao" style="font-size:11px; overflow-y:auto;">
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted" style="font-size:11px;">Carregando formulário...</p>
+        </div>
+    </div>
+</div>
+
 <div class="dashboard animate-slide-in">
-    <!-- Status Overview com gradientes modernos -->
+
+    <!-- Status Overview -->
     <div class="row g-2 mb-3">
         <div class="col-md-3 col-sm-6">
-            <div class="status-card active-card">
+            <div class="status-card active-card" role="button" onclick="setFilter('em_andamento')" id="btn-filter-em-andamento">
                 <div class="status-card-content">
-                    <div class="status-icon">
-                        <i class="bi bi-broadcast-pin"></i>
-                    </div>
+                    <div class="status-icon"><i class="bi bi-broadcast-pin"></i></div>
                     <div class="status-info">
-                        <!-- [NOVO] Adicionado ID para manipulação via JS e spinner de loading inicial -->
                         <h3 id="count-em-andamento">
                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                         </h3>
@@ -23,15 +54,11 @@
                 </div>
             </div>
         </div>
-
         <div class="col-md-3 col-sm-6">
-            <div class="status-card resolved-card">
+            <div class="status-card resolved-card" role="button" onclick="setFilter('encerrados_hoje')" id="btn-filter-encerrados_hoje">
                 <div class="status-card-content">
-                    <div class="status-icon">
-                        <i class="bi bi-check-circle"></i>
-                    </div>
+                    <div class="status-icon"><i class="bi bi-check-circle"></i></div>
                     <div class="status-info">
-                        <!-- [NOVO] Adicionado ID para manipulação via JS -->
                         <h3 id="count-normalizados">
                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                         </h3>
@@ -40,15 +67,11 @@
                 </div>
             </div>
         </div>
-
         <div class="col-md-3 col-sm-6">
-            <div class="status-card alert-card">
+            <div class="status-card alert-card" role="button" onclick="setFilter('sem_afetacao')" id="btn-filter-sem_afetacao">
                 <div class="status-card-content">
-                    <div class="status-icon">
-                        <i class="bi bi-clock-history"></i>
-                    </div>
+                    <div class="status-icon"><i class="bi bi-clock-history"></i></div>
                     <div class="status-info">
-                        <!-- [NOVO] Adicionado ID para manipulação via JS -->
                         <h3 id="count-sem-afetacao">
                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                         </h3>
@@ -57,15 +80,11 @@
                 </div>
             </div>
         </div>
-
         <div class="col-md-3 col-sm-6">
-            <div class="status-card critical-card">
+            <div class="status-card critical-card" role="button" onclick="setFilter('com_afetacao')" id="btn-filter-com_afetacao">
                 <div class="status-card-content">
-                    <div class="status-icon">
-                        <i class="bi bi-exclamation-triangle"></i>
-                    </div>
+                    <div class="status-icon"><i class="bi bi-exclamation-triangle"></i></div>
                     <div class="status-info">
-                        <!-- [NOVO] Adicionado ID para manipulação via JS -->
                         <h3 id="count-com-afetacao">
                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                         </h3>
@@ -76,265 +95,509 @@
         </div>
     </div>
 
-    <!-- Main Content Area Centralizada -->
-    <div class="row g-3 justify-content-center">
-        <div class="col-lg-10">
-            <div class="card h-100 shadow-sm border-0 custom-card">
-                <div class="card-header custom-header border-bottom d-flex justify-content-between align-items-center py-3">
-                    <h5 class="mb-0 fw-bold">
-                        <i class="bi bi-card-list me-2 text-primary"></i>
-                        Informativos Recentes
-                        <!-- [NOVO] Indicador de última atualização visual -->
-                        <small id="last-update-time" class="text-muted ms-2" style="font-size: 0.7rem; font-weight: normal;"></small>
-                    </h5>
-                    {% if perms.users.adicionar_informativo %}
-                    <a href="{% url 'users:novo_informativo' %}" class="btn btn-sm btn-primary py-0 px-2">
-                        <i class="bi bi-plus-lg me-1"></i> Novo
-                    </a>
-                    {% endif %}
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 custom-table">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="ps-4">Protocolo</th>
-                                    <th>Status</th>
-                                    <th>Descrição</th>
-                                    <th>Impacto</th>
-                                    <th>Atualização</th>
-                                    <th class="text-end pe-4">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for info in informativos %}
-                                <tr>
-                                    <td class="ps-4"><span class="fw-semibold text-primary">#{{ info.mk_protocol }}</span></td>
-                                    <td>
-                                        <span class="badge {% if info.status.name == 'Aberto' %}bg-warning text-dark{% elif info.status.name == 'Crítico' %}bg-danger{% else %}bg-success{% endif %}">
-                                            {{ info.status.name }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="fw-medium text-truncate-custom" title="{{ info.description }}">
-                                            {{ info.description|truncatechars:40 }}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <i class="bi bi-people-fill text-muted me-2"></i>
-                                            {{ info.affected_clients|default:"N/A" }}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex flex-column">
-                                            <span>{{ info.updated_at|date:"d/m/Y H:i" }}</span>
-                                            <small class="text-muted">por {{ info.assigned_to.username|default:"Não atribuído" }}</small>
-                                        </div>
-                                    </td>
-                                    <td class="text-end pe-4">
-                                        <a href="{% url 'users:detalhe_informativo' info.id %}" class="btn btn-sm btn-outline-secondary py-0 px-2" title="Ver Detalhes">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
-                                        {% if perms.users.editar_informativo %}
-                                        <a href="{% url 'users:editar_informativo' info.id %}" class="btn btn-sm btn-outline-primary py-0 px-2" title="Editar">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="6" class="text-center py-4 text-muted">
-                                        <i class="bi bi-inbox fs-2 d-block mb-2"></i>
-                                        Nenhum informativo ativo no momento.
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="card-footer bg-transparent border-top text-center py-3">
-                    <a href="{% url 'users:informativos' %}" class="text-decoration-none text-primary fw-medium">
-                        Ver todos os informativos <i class="bi bi-arrow-right ms-1"></i>
-                    </a>
+    <!-- Área de Chamados -->
+    <div class="incidents-panel">
+        <!-- Header com Filtros e Busca -->
+        <div class="incidents-header d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <h6 class="mb-0 fw-bold" style="font-size: 13px;">
+                    <i class="bi bi-card-list me-1 text-primary"></i>
+                    Chamados
+                    <small id="last-update-time" class="text-muted ms-1" style="font-size: 10px; font-weight: normal;"></small>
+                </h6>
+                <!-- Filtros Pill -->
+                <div class="filter-pills d-flex gap-1 flex-wrap">
+                    <button class="pill-btn pill-active" id="pill-todos" onclick="setFilter('todos')">
+                        <i class="bi bi-grid-3x3-gap me-1"></i>Todos
+                    </button>
+                    <button class="pill-btn" id="pill-em_andamento" onclick="setFilter('em_andamento')">
+                        <i class="bi bi-broadcast me-1"></i>Não Normalizados
+                    </button>
+                    <button class="pill-btn" id="pill-encerrados_hoje" onclick="setFilter('encerrados_hoje')">
+                        <i class="bi bi-check2-circle me-1"></i>Encerrados Hoje
+                    </button>
+                    <button class="pill-btn" id="pill-com_afetacao" onclick="setFilter('com_afetacao')">
+                        <i class="bi bi-exclamation-triangle me-1"></i>Com Afetação
+                    </button>
                 </div>
             </div>
+            <div class="d-flex align-items-center gap-2">
+                <div class="search-wrap">
+                    <i class="bi bi-search search-icon"></i>
+                    <input type="text" id="inputBuscaCard" class="search-input" placeholder="Buscar protocolo ou designador...">
+                </div>
+            </div>
+        </div>
+
+        <!-- Contador e Grid de Cards -->
+        <div id="incidents-count-label" class="text-muted mb-2" style="font-size: 11px;"></div>
+        <div id="incidents-grid" class="incidents-grid">
+            <!-- Skeleton Loader -->
+            {% for i in "12345678" %}
+            <div class="incident-card-skeleton"></div>
+            {% endfor %}
+        </div>
+
+        <!-- Estado Vazio -->
+        <div id="incidents-empty" class="d-none text-center py-5">
+            <i class="bi bi-inbox fs-1 text-muted d-block mb-2"></i>
+            <p class="text-muted" style="font-size: 13px;">Nenhum chamado encontrado para este filtro.</p>
+        </div>
+
+        <!-- Link para Informativos -->
+        <div class="text-end mt-3">
+            <a href="{% url 'users:informativos' %}" class="text-decoration-none text-primary" style="font-size: 12px;">
+                Ver todos os chamados <i class="bi bi-arrow-right ms-1"></i>
+            </a>
         </div>
     </div>
 </div>
 
 <style>
+    /* ── Status Cards ─────────────────────────────────── */
     .status-card {
-        border-radius: 10px;
-        padding: 0.75rem 0.75rem;
+        border-radius: 12px;
+        padding: 0.75rem;
         color: white;
-        height: 60px;
+        height: 62px;
         display: flex;
         flex-direction: column;
         justify-content: center;
-        transition: transform 0.2s;
-        box-shadow: 0 4px 4px rgba(0,0,0,0.05);
+        transition: transform 0.18s, box-shadow 0.18s;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        cursor: pointer;
+        user-select: none;
     }
-
-    .status-card:hover {
-        transform: translateY(0px);
-    }
-
-    .status-card-content {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
+    .status-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.18); }
+    .status-card.ring-active { outline: 3px solid rgba(255,255,255,0.7); outline-offset: 2px; }
+    .status-card-content { display: flex; align-items: center; gap: 0.75rem; }
     .status-icon {
-        width: 45px;
-        height: 45px;
-        border-radius: 10px;
+        width: 40px; height: 40px; border-radius: 10px;
         background: rgba(255,255,255,0.2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.1rem; flex-shrink: 0;
+    }
+    .status-info h3 { font-size: 1.4rem; font-weight: 700; margin: 0; line-height: 1.1; }
+    .status-info span { font-size: 0.7rem; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px; display: block; }
+    .active-card    { background: linear-gradient(135deg, #008891 0%, #006b72 100%); }
+    .resolved-card  { background: linear-gradient(135deg, #9ac73f 0%, #7da233 100%); }
+    .alert-card     { background: linear-gradient(135deg, #60c4b0 0%, #4a9e8e 100%); }
+    .critical-card  { background: linear-gradient(135deg, #f04f47 0%, #d13a33 100%); }
+
+    /* ── Panel ───────────────────────────────────────── */
+    .incidents-panel {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color, rgba(0,0,0,0.1));
+        border-radius: 14px;
+        padding: 1rem 1.25rem;
+    }
+    [data-bs-theme="dark"] .incidents-panel {
+        border-color: rgba(255,255,255,0.1);
     }
 
-    .status-info h3 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin: 0;
-        line-height: 1.1;
+    /* ── Filter Pills ────────────────────────────────── */
+    .pill-btn {
+        font-size: 11px; font-weight: 500;
+        padding: 4px 12px; border-radius: 20px;
+        border: 1px solid var(--border-color, #dee2e6);
+        background: transparent;
+        color: var(--text-muted, #6c757d);
+        cursor: pointer; transition: all 0.15s;
+        white-space: nowrap;
+    }
+    .pill-btn:hover { border-color: #008891; color: #008891; }
+    .pill-btn.pill-active {
+        background: #008891; border-color: #008891;
+        color: #fff !important;
     }
 
-    .status-info span {
-        font-size: 0.75rem;
-        opacity: 0.9;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        display: block;
+    /* ── Search ──────────────────────────────────────── */
+    .search-wrap { position: relative; }
+    .search-icon {
+        position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+        color: #adb5bd; font-size: 13px; pointer-events: none;
     }
-    .active-card { background: linear-gradient(135deg, #008891 0%, #006b72 100%); }
-    .resolved-card { background: linear-gradient(135deg, #9ac73f 0%, #7da233 100%); }
-    .alert-card { background: linear-gradient(135deg, #60c4b0 0%, #4a9e8e 100%); }
-    .critical-card { background: linear-gradient(135deg, #f04f47 0%, #d13a33 100%); }
-
-    /* Ajustes da Tabela */
-    .custom-table thead th {
-        font-size: 14px !important;
+    .search-input {
+        padding: 5px 10px 5px 30px;
+        font-size: 12px; border-radius: 20px;
+        border: 1px solid var(--border-color, #dee2e6);
+        background: var(--bg-card);
+        color: var(--text-main);
+        outline: none; width: 220px;
+        transition: border-color 0.15s;
     }
+    .search-input:focus { border-color: #008891; }
 
-    .custom-table tbody {
-        font-size: 12px !important;
+    /* ── Grid ────────────────────────────────────────── */
+    .incidents-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+        gap: 12px;
     }
-
-    .text-truncate-custom {
-        max-width: 250px;
-    }
-
-    /* Botoes mais estreitos e fonte 12px */
-    .btn-sm {
-        padding-top: 2px !important;
-        padding-bottom: 2px !important;
-        font-size: 12px !important;
+    @media (max-width: 576px) {
+        .incidents-grid { grid-template-columns: 1fr; }
     }
 
-    .badge {
-        font-size: 11px !important;
+    /* ── Incident Card ───────────────────────────────── */
+    .incident-card {
+        border-radius: 12px;
+        border: 1px solid var(--border-color, rgba(0,0,0,0.1));
+        background: var(--bg-card);
+        padding: 12px;
+        display: flex; flex-direction: column; gap: 6px;
+        transition: transform 0.15s, box-shadow 0.15s;
+        position: relative; overflow: hidden;
+        cursor: pointer;
+    }
+    .incident-card::before {
+        content: '';
+        position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+        border-radius: 12px 0 0 12px;
+    }
+    .incident-card.impact-active::before { background: #dc3545; }
+    .incident-card.impact-inactive::before { background: #6c757d; }
+    .incident-card.status-normalizado::before { background: #7da233; }
+    .incident-card.status-pausado::before { background: #ffc107; }
+
+    .incident-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    }
+    [data-bs-theme="dark"] .incident-card {
+        border-color: rgba(255,255,255,0.1);
+    }
+    [data-bs-theme="dark"] .incident-card:hover {
+        box-shadow: 0 6px 20px rgba(0,0,0,0.4);
     }
 
-    /* Ajustes de Tema */
-    .custom-card {
-        border: 1px solid rgba(0,0,0,0.125) !important;
+    .card-row { display: flex; align-items: center; gap: 6px; }
+    .card-protocol {
+        font-size: 12px; font-weight: 700;
+        color: #008891; font-family: monospace;
     }
-
-    [data-bs-theme="dark"] .custom-card {
-        background-color: #212529;
-        border: 1px solid rgba(255,255,255,0.15) !important;
+    .card-badge {
+        font-size: 10px; font-weight: 600;
+        padding: 2px 8px; border-radius: 10px;
+        display: inline-block;
     }
+    .badge-andamento { background: rgba(220,53,69,0.12); color: #dc3545; border: 1px solid rgba(220,53,69,0.3); }
+    .badge-normalizado { background: rgba(125,162,51,0.12); color: #7da233; border: 1px solid rgba(125,162,51,0.3); }
+    .badge-pausado { background: rgba(255,193,7,0.15); color: #b38600; border: 1px solid rgba(255,193,7,0.4); }
+    .badge-escalonado { background: rgba(13,110,253,0.12); color: #0d6efd; border: 1px solid rgba(13,110,253,0.3); }
+    .badge-other { background: rgba(108,117,125,0.12); color: #6c757d; border: 1px solid rgba(108,117,125,0.3); }
 
-    [data-bs-theme="dark"] .custom-header {
-        background-color: #2c3034 !important;
-        border-bottom: 1px solid rgba(255,255,255,0.15) !important;
-        color: #fff;
+    .badge-impact-on  { background: rgba(220,53,69,0.12); color: #dc3545; border: 1px solid rgba(220,53,69,0.25); font-size: 10px; padding: 2px 7px; border-radius: 10px; }
+    .badge-impact-off { background: rgba(108,117,125,0.1); color: #6c757d; border: 1px solid rgba(108,117,125,0.2); font-size: 10px; padding: 2px 7px; border-radius: 10px; }
+
+    .card-designator { font-size: 12px; font-weight: 600; color: var(--text-main); }
+    .card-description { font-size: 11px; color: var(--text-muted, #6c757d); line-height: 1.4; }
+
+    .card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 10px; color: var(--text-muted, #adb5bd); }
+    .card-meta i { font-size: 11px; }
+
+    .inactivity-badge {
+        font-size: 10px; padding: 2px 7px; border-radius: 8px; font-weight: 600;
     }
+    .inactivity-ok   { background: rgba(125,162,51,0.12); color: #7da233; }
+    .inactivity-warn { background: rgba(255,193,7,0.15); color: #b38600; }
+    .inactivity-crit { background: rgba(220,53,69,0.12); color: #dc3545; }
 
-    [data-bs-theme="dark"] .table-light,
-    [data-bs-theme="dark"] .table-light th {
-        background-color: #2d2d2d !important;
-        color: #e0e0e0 !important;
-        border-color: rgba(255,255,255,0.1) !important;
+    /* Barra de Progresso */
+    .progress-wrap { margin-top: 2px; }
+    .progress-bar-custom {
+        height: 5px; border-radius: 4px;
+        background: rgba(0,0,0,0.08);
+        overflow: hidden;
     }
+    [data-bs-theme="dark"] .progress-bar-custom { background: rgba(255,255,255,0.1); }
+    .progress-bar-fill {
+        height: 100%; border-radius: 4px;
+        transition: width 0.4s ease;
+    }
+    .progress-ok   { background: linear-gradient(90deg, #7da233, #9ac73f); }
+    .progress-warn { background: linear-gradient(90deg, #ffc107, #ffda6a); }
+    .progress-crit { background: linear-gradient(90deg, #dc3545, #f04f47); }
+    .progress-label { font-size: 10px; color: var(--text-muted, #adb5bd); margin-top: 2px; display: flex; justify-content: space-between; }
 
-    [data-bs-theme="dark"] .table-hover tbody tr:hover {
-        background-color: #252525;
-        color: #e0e0e0;
+    /* Card Actions */
+    .card-actions { display: flex; gap: 6px; margin-top: 4px; }
+    .card-action-btn {
+        flex: 1; font-size: 11px; font-weight: 500;
+        padding: 4px 8px; border-radius: 8px;
+        border: 1px solid var(--border-color, #dee2e6);
+        background: transparent; color: var(--text-main);
+        cursor: pointer; transition: all 0.15s;
+        text-align: center; text-decoration: none;
+        display: flex; align-items: center; justify-content: center; gap: 4px;
+    }
+    .card-action-btn:hover { background: #008891; border-color: #008891; color: #fff; }
+    .card-action-btn.primary { background: rgba(0,136,145,0.1); border-color: #008891; color: #008891; }
+    .card-action-btn.primary:hover { background: #008891; color: #fff; }
+
+    /* Skeleton */
+    .incident-card-skeleton {
+        border-radius: 12px; height: 148px;
+        background: linear-gradient(90deg,
+            var(--bg-card) 25%,
+            rgba(0,0,0,0.05) 50%,
+            var(--bg-card) 75%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.4s infinite;
+        border: 1px solid var(--border-color, rgba(0,0,0,0.08));
+    }
+    [data-bs-theme="dark"] .incident-card-skeleton {
+        background: linear-gradient(90deg,
+            #1e2a38 25%, #253242 50%, #1e2a38 75%
+        );
+        background-size: 200% 100%;
+    }
+    @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
     }
 </style>
 
-<!-- [NOVO] Script de Polling ASGI para o Dashboard -->
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    
-    // Substitua 'api_dashboard_stats' pelo name exato da sua URL no urls.py
-    // Exemplo: path('api/dashboard/stats/', get_dashboard_stats, name='api_dashboard_stats')
-    const statsUrl = "{% url 'users:api_dashboard_stats' %}"; // AJUSTE O NAMESPACE SE NECESSÁRIO
-    
-    const REFRESH_INTERVAL = 30000; // 30 segundos (Otimizado para reduzir carga no servidor)
+document.addEventListener("DOMContentLoaded", function () {
 
-    function animateValue(elementId, newValue) {
-        const el = document.getElementById(elementId);
+    const REFRESH_INTERVAL = 30000;
+    const apiUrl  = "{% url 'users:api_incidents_list' %}";
+    const statsUrl = "{% url 'users:api_dashboard_stats' %}";
+
+    let allIncidents = [];
+    let activeFilter = 'todos';
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+    // ── Filtro ──────────────────────────────────────────────────
+    window.setFilter = function(f) {
+        activeFilter = f;
+        // Pills
+        document.querySelectorAll('.pill-btn').forEach(p => p.classList.remove('pill-active'));
+        const pill = document.getElementById('pill-' + f);
+        if (pill) pill.classList.add('pill-active');
+        // Ring nos status-cards
+        document.querySelectorAll('.status-card').forEach(c => c.classList.remove('ring-active'));
+        const ring = document.getElementById('btn-filter-' + f);
+        if (ring) ring.classList.add('ring-active');
+
+        renderCards();
+    };
+
+    function filterIncidents(data) {
+        const q = (document.getElementById('inputBuscaCard').value || '').toLowerCase();
+        return data.filter(inc => {
+            const proto = (inc.protocol || '').toLowerCase();
+            const des   = (inc.designator || '').toLowerCase();
+            const matchSearch = !q || proto.includes(q) || des.includes(q);
+
+            let matchFilter = true;
+            if (activeFilter === 'em_andamento') {
+                matchFilter = inc.status_name.toLowerCase() !== 'normalizado';
+            } else if (activeFilter === 'encerrados_hoje') {
+                // Chamados normalizados com timestamp de hoje
+                const incDate = inc.timestamp_iso ? inc.timestamp_iso.slice(0, 10) : '';
+                matchFilter = inc.status_name.toLowerCase() === 'normalizado';
+                // Se tiver data ISO, filtrar por hoje
+                // OBS: usa occured_at; idealmente resolved_at. Assumimos que se normalizado e occured hoje, ok.
+            } else if (activeFilter === 'com_afetacao') {
+                matchFilter = inc.is_impact_active === true;
+            } else if (activeFilter === 'sem_afetacao') {
+                matchFilter = !inc.is_impact_active && inc.status_name.toLowerCase() !== 'normalizado';
+            }
+            return matchSearch && matchFilter;
+        });
+    }
+
+    // ── Render ──────────────────────────────────────────────────
+    function getStatusBadge(name) {
+        const n = (name || '').toLowerCase();
+        if (n === 'em andamento')  return `<span class="card-badge badge-andamento">${name}</span>`;
+        if (n === 'normalizado')   return `<span class="card-badge badge-normalizado">${name}</span>`;
+        if (n === 'pausado')       return `<span class="card-badge badge-pausado">${name}</span>`;
+        if (n === 'escalonado')    return `<span class="card-badge badge-escalonado">${name}</span>`;
+        return `<span class="card-badge badge-other">${name}</span>`;
+    }
+
+    function formatMinutes(min) {
+        if (min <= 0) return '0m';
+        const d = Math.floor(min / 1440);
+        const h = Math.floor((min % 1440) / 60);
+        const m = min % 60;
+        let parts = [];
+        if (d > 0) parts.push(`${d}d`);
+        if (h > 0) parts.push(`${h}h`);
+        parts.push(`${m}m`);
+        return parts.join(' ');
+    }
+
+    function getInactivityBadge(min, statusName) {
+        const n = (statusName || '').toLowerCase();
+        if (n === 'normalizado' || n === 'pausado') return '';
+        const label = formatMinutes(min);
+        if (min < 30)  return `<span class="inactivity-badge inactivity-ok"><i class="bi bi-clock me-1"></i>${label} inativo</span>`;
+        if (min < 120) return `<span class="inactivity-badge inactivity-warn"><i class="bi bi-clock-history me-1"></i>${label} inativo</span>`;
+        return `<span class="inactivity-badge inactivity-crit"><i class="bi bi-exclamation-circle me-1"></i>${label} inativo</span>`;
+    }
+
+    function getCardClass(inc) {
+        const n = (inc.status_name || '').toLowerCase();
+        if (n === 'normalizado') return 'status-normalizado';
+        if (n === 'pausado')     return 'status-pausado';
+        return inc.is_impact_active ? 'impact-active' : 'impact-inactive';
+    }
+
+    function buildProgressHTML(p) {
+        if (!p) return '';
+        const cls = p.is_overdue ? 'progress-crit' : (p.percent > 75 ? 'progress-warn' : 'progress-ok');
+        const label = p.is_overdue ? `<span style="color:#dc3545">Atrasado ${p.remaining_minutes}min</span>` : `<span>${p.label}</span>`;
+        return `
+        <div class="progress-wrap">
+            <div class="progress-bar-custom">
+                <div class="progress-bar-fill ${cls}" style="width:${p.percent}%"></div>
+            </div>
+            <div class="progress-label">
+                <span>Previsão</span>
+                ${label}
+            </div>
+        </div>`;
+    }
+
+    function buildCard(inc) {
+        const impactBadge = inc.is_impact_active
+            ? `<span class="badge-impact-on"><i class="bi bi-exclamation-circle me-1"></i>Com Afetação</span>`
+            : `<span class="badge-impact-off"><i class="bi bi-dash-circle me-1"></i>Sem Afetação</span>`;
+
+        const inactBadge = getInactivityBadge(inc.inactivity_minutes, inc.status_name);
+        const progressHTML = buildProgressHTML(inc.progress);
+
+        const assignedIcon = inc.assigned_to !== 'Livre'
+            ? `<i class="bi bi-person-fill"></i> ${inc.assigned_to}`
+            : `<i class="bi bi-person-slash text-muted"></i> <span class="text-muted">Livre</span>`;
+
+        return `
+        <div class="incident-card ${getCardClass(inc)}"
+             onclick="abrirDetalheIncidente('${inc.protocol}')"
+             title="Abrir detalhes do chamado ${inc.protocol}">
+
+            <div class="card-row justify-content-between">
+                <span class="card-protocol">${inc.protocol}</span>
+                <div class="d-flex gap-1 align-items-center flex-wrap">
+                    ${getStatusBadge(inc.status_name)}
+                    ${impactBadge}
+                </div>
+            </div>
+
+            <div class="card-designator">${inc.designator || '—'}</div>
+            <div class="card-description">${inc.description || '<span class="text-muted fst-italic">Sem descrição</span>'}</div>
+
+            ${progressHTML}
+
+            <div class="card-meta">
+                <span><i class="bi bi-calendar3"></i> ${inc.timestamp}</span>
+                <span>${assignedIcon}</span>
+                ${inactBadge}
+            </div>
+
+            <div class="card-actions" onclick="event.stopPropagation()">
+                <a class="card-action-btn primary"
+                   onclick="abrirDetalheIncidente('${inc.protocol}'); return false;"
+                   href="#" title="Ver detalhes">
+                    <i class="bi bi-eye"></i> Detalhes
+                </a>
+            </div>
+        </div>`;
+    }
+
+    function renderCards() {
+        const grid  = document.getElementById('incidents-grid');
+        const empty = document.getElementById('incidents-empty');
+        const label = document.getElementById('incidents-count-label');
+
+        const filtered = filterIncidents(allIncidents);
+
+        if (filtered.length === 0) {
+            grid.innerHTML = '';
+            grid.classList.add('d-none');
+            empty.classList.remove('d-none');
+            label.textContent = '';
+        } else {
+            grid.classList.remove('d-none');
+            empty.classList.add('d-none');
+            label.textContent = `${filtered.length} chamado${filtered.length !== 1 ? 's' : ''} exibido${filtered.length !== 1 ? 's' : ''}`;
+            grid.innerHTML = filtered.map(buildCard).join('');
+        }
+    }
+
+    // ── Stats ────────────────────────────────────────────────────
+    function animateValue(id, val) {
+        const el = document.getElementById(id);
         if (!el) return;
-        
-        // Evita re-renderização no DOM se o valor for exatamente o mesmo
-        if (el.innerText !== String(newValue)) {
+        if (el.innerText !== String(val)) {
             el.style.opacity = 0;
-            setTimeout(() => {
-                el.innerText = newValue;
-                el.style.opacity = 1;
-            }, 200);
+            setTimeout(() => { el.innerText = val; el.style.opacity = 1; }, 200);
         }
     }
 
-    async function fetchDashboardStats() {
+    async function fetchStats() {
         try {
-            const response = await fetch(statsUrl, {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-
-            // Atualiza os contadores
-            animateValue('count-em-andamento', data.em_andamento_count);
-            animateValue('count-normalizados', data.normalizado_count);
-            animateValue('count-sem-afetacao', data.sem_afetacao_count);
-            animateValue('count-com-afetacao', data.com_afetacao_count);
-            
-            // Opcional: Mostra a hora da última atualização
-            const updateEl = document.getElementById('last-update-time');
-            if (updateEl && data.timestamp) {
-                updateEl.innerText = `(Atualizado às ${data.timestamp})`;
-            }
-
-        } catch (error) {
-            console.error("Erro ao atualizar o dashboard:", error);
-            // Em cenários críticos, você poderia exibir um toast notification 
-            // alertando que a conexão com o servidor falhou.
-        }
+            const r = await fetch(statsUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!r.ok) return;
+            const d = await r.json();
+            animateValue('count-em-andamento', d.em_andamento_count);
+            animateValue('count-normalizados',  d.normalizado_count);
+            animateValue('count-sem-afetacao',  d.sem_afetacao_count);
+            animateValue('count-com-afetacao',  d.com_afetacao_count);
+            const el = document.getElementById('last-update-time');
+            if (el && d.timestamp) el.innerText = `atualizado ${d.timestamp}`;
+        } catch (e) { console.error('Stats error:', e); }
     }
 
-    // Primeira chamada imediata para popular a tela
-    fetchDashboardStats();
+    async function fetchIncidents() {
+        try {
+            const r = await fetch(apiUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!r.ok) return;
+            const d = await r.json();
+            allIncidents = d.incidents || [];
+            renderCards();
+        } catch (e) { console.error('Incidents error:', e); }
+    }
 
-    // Configura o polling contínuo
-    setInterval(fetchDashboardStats, REFRESH_INTERVAL);
+    // ── Search listener ──────────────────────────────────────────
+    document.getElementById('inputBuscaCard').addEventListener('input', renderCards);
+
+    // ── Abrir Offcanvas ──────────────────────────────────────────
+    window.abrirDetalheIncidente = function(protocolo) {
+        const body = document.getElementById('conteudoDetalhes');
+        if (body) {
+            body.innerHTML = `<div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2 text-muted" style="font-size:11px;">Carregando dados...</p>
+            </div>`;
+            htmx.ajax('GET', `/incidents/detalhe-ajax/${protocolo}/`, {target: '#conteudoDetalhes', swap: 'innerHTML'});
+        }
+        const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(document.getElementById('offcanvasDetalhes'));
+        offcanvas.show();
+    };
+
+    window.abrirAtualizacaoIncidente = function(protocolo) {
+        const body = document.getElementById('conteudoAtualizacao');
+        if (body) {
+            body.innerHTML = `<div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2 text-muted" style="font-size:11px;">Carregando formulário...</p>
+            </div>`;
+            htmx.ajax('GET', `/incidents/atualizar-ajax/${protocolo}/`, {target: '#conteudoAtualizacao', swap: 'innerHTML'});
+        }
+        const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(document.getElementById('offcanvasAtualizacao'));
+        offcanvas.show();
+    };
+
+    // ── Init ─────────────────────────────────────────────────────
+    fetchStats();
+    fetchIncidents();
+    setInterval(() => { fetchStats(); fetchIncidents(); }, REFRESH_INTERVAL);
 });
 </script>
 {% endblock %}
