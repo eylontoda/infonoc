@@ -4,42 +4,45 @@
     <div class="d-flex gap-1 position-absolute start-0">
         <!-- Visualizar -->
         <button class="btn btn-header-action btn-action-view" 
-                hx-get="/incidents/detalhe-ajax/{{ incident.mk_protocol }}/" hx-target="#conteudoDetalhes" data-bs-toggle="offcanvas" data-bs-target="#offcanvasDetalhes"
+                hx-get="/incidents/detalhe-ajax/{{ incident.mk_protocol }}/{% if is_dashboard %}?source=dashboard{% endif %}" hx-target="#conteudoDetalhes" data-bs-toggle="offcanvas" data-bs-target="#offcanvasDetalhes"
                 title="Ver Detalhes">
             <i class="bi bi-eye-fill"></i>
         </button>
         <!-- Atualizar -->
         <button class="btn btn-header-action btn-action-add" 
-                hx-get="/incidents/atualizar-ajax/{{ incident.mk_protocol }}/" hx-target="#conteudoAtualizacao" data-bs-toggle="offcanvas" data-bs-target="#offcanvasAtualizacao"
+                hx-get="/incidents/atualizar-ajax/{{ incident.mk_protocol }}/{% if is_dashboard %}?source=dashboard{% endif %}" hx-target="#conteudoAtualizacao" data-bs-toggle="offcanvas" data-bs-target="#offcanvasAtualizacao"
                 title="Atualizar">
             <i class="bi bi-plus-square-fill"></i>
         </button>
-        <!-- Resgatar / Liberar -->
-        {% if incident.assigned_to == request.user %}
-            <button class="btn btn-header-action btn-action-release" 
-                    onclick="informativoManager.liberarResponsabilidade('{{ incident.mk_protocol }}')" 
-                    title="Liberar Resgate">
-                <i class="bi bi-person-dash-fill"></i>
+
+        {% if not is_dashboard %}
+            <!-- Resgatar / Liberar -->
+            {% if incident.assigned_to == request.user %}
+                <button class="btn btn-header-action btn-action-release" 
+                        onclick="informativoManager.liberarResponsabilidade('{{ incident.mk_protocol }}')" 
+                        title="Liberar Resgate">
+                    <i class="bi bi-person-dash-fill"></i>
+                </button>
+            {% else %}
+                <button class="btn btn-header-action btn-action-assign" 
+                        onclick="informativoManager.assumirResponsabilidade('{{ incident.mk_protocol }}')" 
+                        title="Resgatar">
+                    <i class="bi bi-person-check-fill"></i>
+                </button>
+            {% endif %}
+            <!-- Editar -->
+            <button class="btn btn-header-action btn-action-edit" 
+                    hx-get="/incidents/editar-ajax/{{ incident.mk_protocol }}/" hx-target="#conteudoEditar" data-bs-toggle="offcanvas" data-bs-target="#offcanvasEditar"
+                    title="Editar">
+                <i class="bi bi-pencil-fill"></i>
             </button>
-        {% else %}
-            <button class="btn btn-header-action btn-action-assign" 
-                    onclick="informativoManager.assumirResponsabilidade('{{ incident.mk_protocol }}')" 
-                    title="Resgatar">
-                <i class="bi bi-person-check-fill"></i>
+            <!-- Excluir -->
+            <button class="btn btn-header-action btn-action-delete" 
+                    onclick="informativoManager.excluirChamado('{{ incident.mk_protocol }}')" 
+                    title="Excluir">
+                <i class="bi bi-trash-fill"></i>
             </button>
         {% endif %}
-        <!-- Editar -->
-        <button class="btn btn-header-action btn-action-edit" 
-                hx-get="/incidents/editar-ajax/{{ incident.mk_protocol }}/" hx-target="#conteudoEditar" data-bs-toggle="offcanvas" data-bs-target="#offcanvasEditar"
-                title="Editar">
-            <i class="bi bi-pencil-fill"></i>
-        </button>
-        <!-- Excluir -->
-        <button class="btn btn-header-action btn-action-delete" 
-                onclick="informativoManager.excluirChamado('{{ incident.mk_protocol }}')" 
-                title="Excluir">
-            <i class="bi bi-trash-fill"></i>
-        </button>
     </div>
 
     <!-- Título Centralizado -->

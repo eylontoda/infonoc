@@ -160,7 +160,7 @@
                 </select>
             </div>
             <div class="col-4">
-                <label id="labelExpectedAt" class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Previsão de Normalização</label>
+                <label id="labelExpectedAt" class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Previsão</label>
                 <input type="datetime-local" name="expected_at" id="inputExpectedAt" class="form-control form-control-sm shadow-none" style="font-size: 11px;">
             </div>
         </div>
@@ -350,7 +350,7 @@
                 if (impactLevel) impactLevel.removeAttribute('disabled');
                 if (selectSla) selectSla.removeAttribute('disabled');
                 if (clientType) clientType.removeAttribute('disabled');
-                labelETR.innerHTML = 'Previsão de Normalização <span class="text-danger">*</span>';
+                labelETR.innerHTML = 'Previsão <span class="text-danger">*</span>';
                 if (section) {
                     section.style.opacity = '1';
                     section.style.pointerEvents = 'auto';
@@ -380,7 +380,7 @@
                     if (opt) clientType.value = opt.value;
                     clientType.setAttribute('disabled', 'disabled');
                 }
-                labelETR.innerHTML = 'Previsão de Normalização';
+                labelETR.innerHTML = 'Previsão';
                 if (section) {
                     section.style.opacity = '0.5';
                     // Deixamos pointer-events auto para permitir clicar no botão de rádio novamente

@@ -208,7 +208,8 @@ async def detalhe_incidente_ajax(request, protocolo):
                 'tempo_afetacao_str': format_duration(impact_td),
                 'previsao_color': previsao_color,
                 'afetacao_color': afetacao_color,
-                'historico_updates': historico_updates
+                'historico_updates': historico_updates,
+                'is_dashboard': request.GET.get('source') == 'dashboard'
             }
 
         context_data = await process_incident_data()
@@ -298,12 +299,12 @@ async def atualizar_incidente_ajax(request, protocolo):
                     # 1. Com afetação: Obrigatório e Futuro
                     if not new_expected_at:
                         response = HttpResponse(status=200)
-                        response['HX-Trigger'] = json.dumps({"erroValidacao": "Para chamados 'Com afetação', a previsão de normalização é obrigatória."})
+                        response['HX-Trigger'] = json.dumps({"erroValidacao": "Para chamados 'Com afetação', a previsão é obrigatória."})
                         response['HX-Reswap'] = 'none'
                         return response
                     if new_expected_at <= now:
                         response = HttpResponse(status=200)
-                        response['HX-Trigger'] = json.dumps({"erroValidacao": "A previsão de normalização deve ser uma data futura."})
+                        response['HX-Trigger'] = json.dumps({"erroValidacao": "A previsão deve ser uma data futura."})
                         response['HX-Reswap'] = 'none'
                         return response
                 else:
@@ -375,22 +376,41 @@ async def atualizar_incidente_ajax(request, protocolo):
 
                 # 2. Comentário Automático de Sistema (se o operador não preencher nada)
                 if not comment_text:
-                    if detected_slugs or (new_status and incident.status_id != new_status.id):
-                        changes = list(detected_slugs)
-                        if new_status and incident.status_id != new_status.id:
-                            changes.append('status')
+                    mensagens_sistema = []
+
+                    if 'impact' in detected_slugs:
+                        if is_impact_active:
+                            mensagens_sistema.append("A afetação foi iniciada")
+                        else:
+                            mensagens_sistema.append("A afetação foi encerrada")
+                            
+                    if 'expected_at' in detected_slugs:
+                        if new_expected_at:
+                            tz = timezone.get_current_timezone()
+                            dt_str = new_expected_at.astimezone(tz).strftime('%d/%m/%Y às %H:%M')
+                            mensagens_sistema.append(f"A previsão foi atualizada para {dt_str}")
+                        else:
+                            mensagens_sistema.append("A previsão foi removida")
+                            
+                    if 'impact_level' in detected_slugs and new_impact_level:
+                        mensagens_sistema.append(f"O nível de impacto foi alterado para '{new_impact_level.name}'")
                         
-                        # Tradução para exibição amigável no comentário
-                        traducoes = {
-                            'impact': 'impacto',
-                            'expected_at': 'previsão de normalização',
-                            'impact_level': 'nível de impacto',
-                            'impact_type': 'tipo de impacto',
-                            'stopped_at': 'previsão de despausa',
-                            'status': 'status'
-                        }
-                        readable_changes = [traducoes.get(s, s.replace('_', ' ')) for s in changes]
-                        comment_text = f"[SISTEMA] Atualização de: {', '.join(readable_changes)}."
+                    if 'impact_type' in detected_slugs and new_impact_type:
+                        mensagens_sistema.append(f"O tipo de impacto foi alterado para '{new_impact_type.name}'")
+                        
+                    if 'stopped_at' in detected_slugs:
+                        if new_stopped_at:
+                            tz = timezone.get_current_timezone()
+                            dt_str = new_stopped_at.astimezone(tz).strftime('%d/%m/%Y às %H:%M')
+                            mensagens_sistema.append(f"A previsão de despausa foi atualizada para {dt_str}")
+                        else:
+                            mensagens_sistema.append("A previsão de despausa foi removida")
+                            
+                    if new_status and incident.status_id != new_status.id:
+                        mensagens_sistema.append(f"O status do chamado foi alterado para '{new_status.name}'")
+
+                    if mensagens_sistema:
+                        comment_text = "[SISTEMA] " + ". ".join(mensagens_sistema) + "."
                     else:
                         comment_text = "[SISTEMA] Atualização de rotina."
 
@@ -1249,7 +1269,7 @@ async def novo_incidente_ajax(request):
                             expected_at = timezone.make_aware(expected_at)
                         if expected_at and expected_at <= (occured_at or now):
                             response = HttpResponse(status=200)
-                            response['HX-Trigger'] = json.dumps({"erroValidacao": "A previsão de normalização deve ser posterior ao início."})
+                            response['HX-Trigger'] = json.dumps({"erroValidacao": "A previsão deve ser posterior ao início."})
                             response['HX-Reswap'] = 'none'
                             return response
 
