@@ -2,7 +2,8 @@ from django.shortcuts import render
 from django.views.generic import TemplateView, DetailView, UpdateView
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.db.models import Count, Q
+from django.db.models import Count, Q, F
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.core.cache import cache
 from django.utils.dateparse import parse_datetime
@@ -24,6 +25,20 @@ from django.db import transaction
 from django.contrib.auth import get_user_model
 User = get_user_model()
 
+def format_duration_human(total_m):
+    """
+    Converte minutos em string amigável: 'Xd Yh Zmin'
+    """
+    if total_m <= 0: return "0min"
+    d = total_m // 1440
+    h = (total_m % 1440) // 60
+    m = total_m % 60
+    parts = []
+    if d > 0: parts.append(f"{d}d")
+    if h > 0: parts.append(f"{h}h")
+    parts.append(f"{m}min")
+    return " ".join(parts)
+
 class UserLoginView(LoginView):
     template_name = 'users/login.html'
     redirect_authenticated_user = True
@@ -40,7 +55,9 @@ class HomeView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         context['informativos'] = Incident.objects.exclude(
             status__name__iexact='Excluido'
-        ).select_related('status', 'incident_type', 'assigned_to').order_by('-occured_at')[:5]
+        ).annotate(
+            last_event=Coalesce(F('last_manual_update_at'), F('occured_at'))
+        ).select_related('status', 'incident_type', 'assigned_to').order_by('-last_event')[:5]
         return context
 
 class InformativosView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
@@ -137,15 +154,7 @@ async def detalhe_incidente_ajax(request, protocolo):
 
             def format_duration(td):
                 total_m = int(td.total_seconds() // 60)
-                if total_m <= 0: return "0min"
-                d = total_m // 1440
-                h = (total_m % 1440) // 60
-                m = total_m % 60
-                parts = []
-                if d > 0: parts.append(f"{d}d")
-                if h > 0: parts.append(f"{h}h")
-                parts.append(f"{m}min")
-                return " ".join(parts)
+                return format_duration_human(total_m)
 
             # Designador e Nomes Planos
             # Designador e Nomes Planos (Sincronizado com Tabela Principal)
@@ -174,7 +183,9 @@ async def detalhe_incidente_ajax(request, protocolo):
             impacto_nivel_nome = incident.impact_level.name if incident.impact_level else "N/D"
 
             # [NOVO] Histórico Otimizado com Tags M2M
-            historico_updates = incident.updates.select_related('created_by').prefetch_related('tags').order_by('-created_at')
+            historico_updates = incident.updates.annotate(
+                display_time=Coalesce(F('user_updated_at'), F('created_at'))
+            ).select_related('created_by').prefetch_related('tags').order_by('-display_time')
 
             locais_list = [r.name for r in incident.affected_regions.all()]
             locais_afetados = ", ".join(locais_list) if locais_list else "Nenhum local mapeado"
@@ -243,6 +254,7 @@ async def atualizar_incidente_ajax(request, protocolo):
                 is_impact_active = request.POST.get('is_impact_active') == 'True'
                 comment_text = request.POST.get('technical_note', '').strip()
                 stopped_at = request.POST.get('stopped_at')
+                user_updated_at_str = request.POST.get('user_updated_at')
                 
                 new_status = Status.objects.filter(id=status_id).first()
                 new_impact_level = ImpactLevel.objects.filter(id=impact_level_id).first() if impact_level_id else None
@@ -250,6 +262,26 @@ async def atualizar_incidente_ajax(request, protocolo):
 
                 # --- Lógica de Sincronização e Geração de Histórico (Movida do Model para a View) ---
                 now = timezone.now()
+                user_updated_at = parse_datetime(user_updated_at_str) if user_updated_at_str else now
+                if not user_updated_at:
+                    user_updated_at = now
+
+                if user_updated_at:
+                    if timezone.is_naive(user_updated_at):
+                        user_updated_at = timezone.make_aware(user_updated_at)
+                    
+                    if user_updated_at > now:
+                        response = HttpResponse(status=200)
+                        response['HX-Trigger'] = json.dumps({"erroValidacao": "A data da atualização não pode ser futura."})
+                        response['HX-Reswap'] = 'none'
+                        return response
+                    
+                    if user_updated_at < incident.occured_at:
+                        response = HttpResponse(status=200)
+                        response['HX-Trigger'] = json.dumps({"erroValidacao": f"A data da atualização não pode ser anterior à abertura ({incident.occured_at.strftime('%d/%m %H:%M')})."})
+                        response['HX-Reswap'] = 'none'
+                        return response
+
                 detected_slugs = []
                 
                 # 1. Detectar Mudanças para o Histórico (Compara o que veio do POST com o estado atual do incident)
@@ -364,7 +396,7 @@ async def atualizar_incidente_ajax(request, protocolo):
 
                 # 3. Cálculo de Tempo Decorrido
                 last_update = incident.last_history_update_at or incident.occured_at or now
-                time_elapsed = max(0, int((now - last_update).total_seconds() / 60))
+                time_elapsed = max(0, int((user_updated_at - last_update).total_seconds() / 60))
 
                 # 4. Sincronização e Persistência (Transacional)
                 with transaction.atomic():
@@ -375,27 +407,20 @@ async def atualizar_incidente_ajax(request, protocolo):
                     incident.expected_at = new_expected_at or incident.expected_at
                     incident.stopped_at = new_stopped_at or incident.stopped_at
                     incident.is_impact_active = is_impact_active
-                    incident.last_history_update_at = now
+                    incident.last_history_update_at = now # Registro absoluto
+                    incident.last_manual_update_at = user_updated_at # Prioriza manual se houver
                     
                     # Outras relações específicas da View
                     # client_type e sla movidos para Edição Mestra
                     if new_status and new_status.name.lower() == 'escalonado' and assigned_to_id:
                         incident.assigned_to_id = assigned_to_id
                     
-                    # Detecção de Encerramento
-                    if incident.status.name.lower() in ['normalizado', 'resolvido', 'encerrado'] and not incident.resolved_at:
-                        incident.resolved_at = now
-                        # Processa campos extras de normalização se existirem
-                        if root_cause_id: incident.root_cause_id = root_cause_id
-                        if note_text: incident.note = note_text
-                        if rfo_text: incident.rfo = rfo_text
-                        
-                        # Permissão administrativa para datas retroativas
-                        if user.has_perm('incidents.can_edit_admin_fields'):
-                            occ_at_val = request.POST.get('occured_at')
-                            res_at_val = request.POST.get('resolved_at')
-                            if occ_at_val: incident.occured_at = parse_datetime(occ_at_val)
-                            if res_at_val: incident.resolved_at = parse_datetime(res_at_val)
+                        # Detecção de Encerramento (Campos extras apenas)
+                        if incident.status.name.lower() in ['normalizado', 'resolvido', 'encerrado'] and not incident.resolved_at:
+                            incident.resolved_at = now
+                            if root_cause_id: incident.root_cause_id = root_cause_id
+                            if note_text: incident.note = note_text
+                            if rfo_text: incident.rfo = rfo_text
 
                     incident.save()
 
@@ -406,6 +431,7 @@ async def atualizar_incidente_ajax(request, protocolo):
                         status=incident.status,
                         is_impact_active=incident.is_impact_active,
                         comment=comment_text,
+                        user_updated_at=user_updated_at,
                         impact_level=incident.impact_level,
                         impact_type=incident.impact_type,
                         expected_at=incident.expected_at,
@@ -487,7 +513,9 @@ async def atualizar_incidente_ajax(request, protocolo):
                 designador_nome = "N/D"
 
             # Histórico ordenado com Tags M2M
-            historico_updates = incident.updates.select_related('created_by').prefetch_related('tags').order_by('-created_at')
+            historico_updates = incident.updates.annotate(
+                display_time=Coalesce(F('user_updated_at'), F('created_at'))
+            ).select_related('created_by').prefetch_related('tags').order_by('-display_time')
 
             return {
                 'incident': incident,
@@ -499,7 +527,8 @@ async def atualizar_incidente_ajax(request, protocolo):
                 'lista_slas': lista_slas,
                 'lista_causas_raiz': lista_causas_raiz,
                 'lista_usuarios': lista_usuarios,
-                'historico_updates': historico_updates
+                'historico_updates': historico_updates,
+                'now': timezone.now()
             }
 
         context_data = await get_update_form_data()
@@ -550,7 +579,6 @@ async def editar_incidente_ajax(request, protocolo):
                         new_protocol = request.POST.get('mk_protocol', '').strip()
                         new_type_id = clean_id(request.POST.get('incident_type_id'))
                         new_occured_str = request.POST.get('occured_at')
-                        new_expected_str = request.POST.get('expected_at')
 
                         # Validação de Protocolo
                         if not new_protocol:
@@ -579,10 +607,7 @@ async def editar_incidente_ajax(request, protocolo):
                             temp_occ = timezone.make_aware(temp_occ)
                         new_occured = temp_occ.replace(second=0, microsecond=0) if temp_occ else None
                         
-                        temp_exp = parse_datetime(new_expected_str) if new_expected_str else None
-                        if temp_exp and timezone.is_naive(temp_exp):
-                            temp_exp = timezone.make_aware(temp_exp)
-                        new_expected = temp_exp.replace(second=0, microsecond=0) if temp_exp else None
+                        new_expected = None
                         
                         # Detecção de Mudanças
                         diffs = []
@@ -591,10 +616,6 @@ async def editar_incidente_ajax(request, protocolo):
                         if incident.mk_protocol != new_protocol: diffs.append("Protocolo")
                         if incident.incident_type_id != new_type_id: diffs.append("Tipo")
                         if old_occured != new_occured: diffs.append("Ocorrência")
-                        
-                        if old_expected != new_expected: 
-                            diffs.append("Previsão")
-                            detected_slugs.append("expected_at")
 
                         if request.POST.get('description', '') != (incident.description or ''): diffs.append("Descrição")
                         
@@ -614,21 +635,6 @@ async def editar_incidente_ajax(request, protocolo):
                         if clean_id(request.POST.get('circuit_id')) != incident.circuit_id: diffs.append("Circuito")
                         if clean_id(request.POST.get('device_id')) != incident.device_id: diffs.append("Device")
                         
-                        new_impact_type_id = clean_id(request.POST.get('impact_type_id'))
-                        if new_impact_type_id != incident.impact_type_id:
-                            diffs.append("Tipo Impacto")
-                            detected_slugs.append("impact_type")
-
-                        new_impact_level_id = clean_id(request.POST.get('impact_level_id'))
-                        if new_impact_level_id != incident.impact_level_id:
-                            diffs.append("Nível Impacto")
-                            detected_slugs.append("impact_level")
-
-                        new_is_impact_active = request.POST.get('is_impact_active') == 'True'
-                        if new_is_impact_active != incident.is_impact_active:
-                            diffs.append("Afetação")
-                            detected_slugs.append("impact")
-
                         # Verificação de M2M
                         regioes_novas = set(clean_id(r) for r in request.POST.getlist('affected_regions') if clean_id(r))
                         regioes_atuais = set(r.id for r in incident.affected_regions.all())
@@ -650,9 +656,6 @@ async def editar_incidente_ajax(request, protocolo):
                         incident.reported_symptom_id = clean_id(request.POST.get('reported_symptom_id'))
                         incident.sla_id = new_sla_id
                         incident.client_type_id = new_client_type_id
-                        incident.impact_type_id = new_impact_type_id
-                        incident.impact_level_id = new_impact_level_id
-                        incident.is_impact_active = new_is_impact_active
                         
                         tipo_obj = IncidentType.objects.filter(id=incident.incident_type_id).first()
                         tipo = tipo_obj.name if tipo_obj else "N/D"
@@ -662,10 +665,9 @@ async def editar_incidente_ajax(request, protocolo):
                         incident.device_id = clean_id(request.POST.get('device_id')) if tipo in ['R.A.', 'Equipamento'] else None
                         
                         if new_occured_str: incident.occured_at = parse_datetime(new_occured_str)
-                        if new_expected_str: incident.expected_at = parse_datetime(new_expected_str)
                         incident.description = request.POST.get('description', '')
                         
-                        incident.last_history_update_at = timezone.now()
+                        incident.last_manual_update_at = timezone.now()
                         incident.save()
                         
                         regioes = request.POST.getlist('affected_regions')
@@ -679,6 +681,7 @@ async def editar_incidente_ajax(request, protocolo):
                             status=incident.status,
                             is_impact_active=incident.is_impact_active,
                             comment=comment_text,
+                            user_updated_at=timezone.now(),
                             impact_level=incident.impact_level,
                             impact_type=incident.impact_type,
                             expected_at=incident.expected_at,
@@ -734,19 +737,6 @@ async def editar_incidente_ajax(request, protocolo):
             
             if not incident: return None
             
-            # Ordenação para Nível de Impacto (sem 'Em análise')
-            niveis_ordem = [
-                'Nenhum cliente', '01 à 31 clientes', '32 à 100 clientes', 
-                '100 à 500 clientes', '500 à 1000 clientes', '1000 à 2000 clientes', 
-                '2000 à 5000 clientes', 'Mais de 5000 clientes', 'Todos os clientes'
-            ]
-            niveis = list(ImpactLevel.objects.exclude(name='Em análise'))
-            niveis.sort(key=lambda x: niveis_ordem.index(x.name) if x.name in niveis_ordem else 999)
-
-            # Ordenação para Tipo de Impacto (Total primeiro)
-            tipos_impacto = list(ImpactType.objects.all())
-            tipos_ordem = ['Total', 'Parcial', 'Intermitente', 'Nenhum']
-            tipos_impacto.sort(key=lambda x: tipos_ordem.index(x.name) if x.name in tipos_ordem else 999)
 
             return {
                 'incident': incident,
@@ -757,8 +747,6 @@ async def editar_incidente_ajax(request, protocolo):
                 'lista_slas': list(SLA.objects.all().order_by('id')),
                 'lista_tipos_cliente': list(ClientType.objects.exclude(name='Em Análise').order_by('id')),
                 'lista_regioes': list(Region.objects.all().order_by('name')),
-                'lista_tipos_impacto': tipos_impacto,
-                'lista_niveis_impacto': niveis,
                 
                 # Listas de infra categorizadas (Apenas ATIVOS)
                 'lista_sites': list(Site.objects.filter(netbox_status__slug='active').order_by('name')),
@@ -819,10 +807,11 @@ async def api_dashboard_stats(request):
     if not stats_data:
         @sync_to_async
         def get_stats():
-            hoje = timezone.now().date()
+            now = timezone.now()
+            last_24h = now - timezone.timedelta(hours=24)
             return Incident.objects.aggregate(
                 em_andamento=Count('id', filter=Q(status__name__iexact='Em andamento')),
-                normalizado=Count('id', filter=Q(status__name__iexact='Normalizado', resolved_at__date=hoje)),
+                normalizado=Count('id', filter=Q(status__name__iexact='Normalizado', resolved_at__gte=last_24h)),
                 sem_afetacao=Count('id', filter=Q(status__name__iexact='Em andamento', is_impact_active=False)),
                 com_afetacao=Count('id', filter=Q(status__name__iexact='Em andamento', is_impact_active=True))
             )
@@ -874,19 +863,32 @@ async def api_incidents_list(request):
             except Status.DoesNotExist:
                 pass
 
+        from django.db.models import Prefetch
+        
+        updates_prefetch = Prefetch(
+            'updates',
+            queryset=UpdateIncident.objects.order_by('-created_at'),
+            to_attr='latest_updates'
+        )
+
         incidents = Incident.objects.exclude(
             status__name__iexact='Excluido'
         ).select_related(
             'status', 'incident_type', 'circuit', 'site', 'device', 'assigned_to'
+        ).prefetch_related(
+            updates_prefetch
         ).only(
-            'id', 'mk_protocol', 'occured_at', 'description', 'status__name', 
-            'incident_type__name', 'is_impact_active', 'last_history_update_at',
+            'id', 'mk_protocol', 'occured_at', 'expected_at', 'resolved_at', 'description', 'status__name', 
+            'incident_type__name', 'is_impact_active', 'last_history_update_at', 'last_manual_update_at',
             'site__name', 'site__facility', 'circuit__name', 'device__name',
             'assigned_to__username', 'stopped_at'
-        ).order_by('-occured_at')
+        ).annotate(
+            last_event=Coalesce(F('last_manual_update_at'), F('occured_at'))
+        ).order_by('-last_event')
         
         data_list = []
         for inc in incidents:
+            dt_last_event_local = timezone.localtime(inc.last_event) if inc.last_event else None
             dt_occured_local = timezone.localtime(inc.occured_at) if inc.occured_at else None
             
             # Inatividade = Tempo desde a última atualização (ou criação se nunca atualizado)
@@ -899,7 +901,7 @@ async def api_incidents_list(request):
             paused_percent = 0
             if is_pausado and inc.stopped_at:
                 # Previsão de despausa no futuro
-                last_update = inc.last_history_update_at or inc.occured_at
+                last_update = inc.last_manual_update_at or inc.occured_at
                 total_pause_duration = (inc.stopped_at - last_update).total_seconds()
                 remaining_pause = (inc.stopped_at - hoje).total_seconds()
                 
@@ -912,7 +914,7 @@ async def api_incidents_list(request):
             elif is_normalizado:
                 inactivity_minutes = 0
             else:
-                last_update = inc.last_history_update_at or inc.occured_at
+                last_update = inc.last_manual_update_at or inc.occured_at
                 diff_delta = hoje - last_update if last_update else None
                 inactivity_minutes = int(diff_delta.total_seconds() / 60) if diff_delta else 0
 
@@ -943,7 +945,8 @@ async def api_incidents_list(request):
                 is_overdue = remaining_seconds < 0
                 
                 if is_overdue:
-                    label = "Atrasado"
+                    rem_min = int(abs(remaining_seconds) / 60)
+                    label = format_duration_human(rem_min)
                 else:
                     rem_min = int(remaining_seconds / 60)
                     if rem_min < 60:
@@ -958,11 +961,20 @@ async def api_incidents_list(request):
                     'remaining_minutes': int(abs(remaining_seconds) / 60)
                 }
 
+            dt_expected_local = timezone.localtime(inc.expected_at) if inc.expected_at else None
+            
+            latest_update = inc.latest_updates[0] if hasattr(inc, 'latest_updates') and inc.latest_updates else None
+            last_update_text = latest_update.comment if latest_update else ""
+
             data_list.append({
                 'id': inc.id,
                 'protocol': inc.mk_protocol or "S/P",
-                'timestamp': dt_occured_local.strftime('%d/%m/%Y %H:%M') if dt_occured_local else "N/D",
-                'timestamp_iso': dt_occured_local.isoformat() if dt_occured_local else None,
+                'timestamp': dt_last_event_local.strftime('%d/%m/%Y %H:%M') if dt_last_event_local else "N/D",
+                'timestamp_iso': dt_last_event_local.isoformat() if dt_last_event_local else None,
+                'occured_at': dt_occured_local.strftime('%d/%m/%Y %H:%M') if dt_occured_local else "N/D",
+                'occured_at_iso': dt_occured_local.isoformat() if dt_occured_local else None,
+                'expected_at': dt_expected_local.strftime('%d/%m/%Y %H:%M') if dt_expected_local else None,
+                'last_update_text': last_update_text,
                 'designator': designator,
                 'description': inc.description[:100] + "..." if inc.description and len(inc.description) > 100 else (inc.description or ""),
                 'status_name': inc.status.name if inc.status else "Desconhecido",
@@ -973,6 +985,7 @@ async def api_incidents_list(request):
                 'paused_percent': paused_percent,
                 'assigned_to': inc.assigned_to.username if inc.assigned_to else "Livre",
                 'progress': progress_data,
+                'resolved_at_iso': inc.resolved_at.isoformat() if inc.resolved_at else None,
             })
         return data_list
 
@@ -1256,6 +1269,7 @@ async def novo_incidente_ajax(request):
                             impact_type_id=impact_type_id,
                             impact_level_id=impact_level_id,
                             is_impact_active=is_impact_active,
+                            last_manual_update_at=now,
                             site_id=site_id if tipo_nome == 'Site' else None,
                             circuit_id=circuit_id if tipo_nome in ['Backbone', 'Core'] else None,
                             device_id=device_id if tipo_nome in ['R.A.', 'Equipamento'] else None,

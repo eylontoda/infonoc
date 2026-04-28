@@ -116,16 +116,7 @@
         <!-- SEÇÃO GRUPADA: AFETAÇÃO -->
         <div id="sectionAfetacaoMestre" class="border rounded p-2 mb-1" style="background-color: rgba(0,0,0,0.015);">
             <div class="row g-2 mb-1 align-items-end">
-                <div class="col-4">
-                    <label class="form-label fw-bold text-muted text-uppercase mb-1 d-block text-center" style="font-size: 9px;">Status da Afetação</label>
-                    <div class="btn-group w-100 shadow-sm" role="group">
-                        <input type="radio" class="btn-check" name="is_impact_active" id="impactoAtivoMestre" value="True" {% if incident.is_impact_active %}checked{% endif %}>
-                        <label class="btn btn-outline-danger btn-sm py-0" for="impactoAtivoMestre" style="font-size: 11px; height: 24px; line-height: 24px;">Ativa</label>
-                        <input type="radio" class="btn-check" name="is_impact_active" id="impactoInativoMestre" value="False" {% if not incident.is_impact_active %}checked{% endif %}>
-                        <label class="btn btn-outline-success btn-sm py-0" for="impactoInativoMestre" style="font-size: 11px; height: 24px; line-height: 24px;">Inativa</label>
-                    </div>
-                </div>
-                <div class="col-4">
+                <div class="col-6">
                     <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">SLA Inicial</label>
                     <select name="sla_id" id="selectSlaMestre" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
                         <option value="">Selecione...</option>
@@ -134,7 +125,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-4">
+                <div class="col-6">
                     <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Segmento Cliente</label>
                     <select name="client_type_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
                         <option value="">Selecione...</option>
@@ -142,31 +133,6 @@
                         <option value="{{ c.id }}" {% if incident.client_type_id == c.id %}selected{% endif %}>{{ c.name }}</option>
                         {% endfor %}
                     </select>
-                </div>
-            </div>
-
-            <div class="row g-2 mb-1">
-                <div class="col-4">
-                    <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Tipo de Impacto</label>
-                    <select name="impact_type_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
-                        <option value="">Selecione...</option>
-                        {% for t in lista_tipos_impacto %}
-                        <option value="{{ t.id }}" {% if incident.impact_type_id == t.id %}selected{% endif %}>{{ t.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-4">
-                    <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Nível Impacto</label>
-                    <select name="impact_level_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;">
-                        <option value="">Selecione...</option>
-                        {% for l in lista_niveis_impacto %}
-                        <option value="{{ l.id }}" {% if incident.impact_level_id == l.id %}selected{% endif %}>{{ l.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-4">
-                    <label id="labelExpectedAtMestre" class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Previsão de Normalização</label>
-                    <input type="datetime-local" name="expected_at" id="inputExpectedMestre" class="form-control form-control-sm shadow-none" style="font-size: 11px;" value="{{ incident.expected_at|date:'Y-m-d\TH:i' }}">
                 </div>
             </div>
 
@@ -424,30 +390,6 @@
         checkboxes.forEach(cb => cb.addEventListener('change', updateTags));
         updateTags();
 
-        // Lógica de Ativa/Inativa Opacidade
-        const radiosImpacto = document.querySelectorAll('input[name="is_impact_active"]');
-        const sectionAfetacao = document.getElementById('sectionAfetacaoMestre');
-        function updateImpactOpacity() {
-            const isInativo = document.getElementById('impactoInativoMestre').checked;
-            sectionAfetacao.style.opacity = isInativo ? '0.5' : '1';
-            
-            // Em vez de disabled (que remove do POST), usamos pointer-events para bloquear
-            sectionAfetacao.style.pointerEvents = isInativo ? 'none' : 'auto';
-
-            if (isInativo) {
-                const inputETR = document.getElementById('inputExpectedMestre');
-                if (inputETR) inputETR.value = "";
-            }
-            
-            // Garantimos que os botões de rádio de afetação fiquem fora do bloqueio de ponteiro
-            // para que o usuário possa reativar a seção
-            const impactRadioGroup = document.querySelector('[name="is_impact_active"]').closest('.col-4');
-            if (impactRadioGroup) {
-                impactRadioGroup.style.pointerEvents = 'auto';
-            }
-        }
-        radiosImpacto.forEach(r => r.addEventListener('change', updateImpactOpacity));
-        updateImpactOpacity();
 
     })();
 </script>

@@ -62,6 +62,7 @@
 
         </div>
 
+
         <!-- Toggle de Condição de Impacto Geral -->
         <div class="mb-1">
             <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Condição Ativa de
@@ -77,6 +78,14 @@
                 <label class="btn btn-outline-success btn-sm" for="impactoInativo" style="font-size: 11px;"><i
                         class="bi bi-check-circle me-1"></i> Sem afetação</label>
             </div>
+        </div>
+
+        <!-- Data/Hora da Atualização -->
+        <div class="mb-1">
+            <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Data/Hora da Atualização</label>
+            <input type="datetime-local" class="form-control form-control-sm shadow-none" name="user_updated_at" id="inputUserUpdatedAt"
+                   value="{{ now|date:'Y-m-d\TH:i' }}" style="font-size: 11px;">
+            <div class="invalid-feedback" style="font-size: 9px;">Data inválida para atualização.</div>
         </div>
 
         <!-- Nota Técnica -->
@@ -245,6 +254,26 @@
             const selected = new Date(this.value);
             if (selected <= now) {
                 this.setCustomValidity('A data deve ser futura');
+                this.classList.add('is-invalid');
+            } else {
+                this.setCustomValidity('');
+                this.classList.remove('is-invalid');
+            }
+        });
+
+        // Validação de Data da Atualização (não anterior à abertura e não futura)
+        const inputUserUpdatedAt = document.getElementById('inputUserUpdatedAt');
+        const occuredAt = new Date("{{ incident.occured_at|date:'Y-m-d H:i' }}");
+        
+        inputUserUpdatedAt?.addEventListener('change', function() {
+            const now = new Date();
+            const selected = new Date(this.value);
+            
+            if (selected > now) {
+                this.setCustomValidity('A data não pode ser futura');
+                this.classList.add('is-invalid');
+            } else if (selected < occuredAt) {
+                this.setCustomValidity('A data não pode ser anterior à abertura');
                 this.classList.add('is-invalid');
             } else {
                 this.setCustomValidity('');

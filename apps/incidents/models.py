@@ -118,6 +118,7 @@ class Incident(BaseModel):
     resolved_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
     last_history_update_at = models.DateTimeField(null=True, blank=True)
+    last_manual_update_at = models.DateTimeField(null=True, blank=True)
     stopped_at = models.DateTimeField(null=True, blank=True)
     circuit = models.ForeignKey('netbox.Circuit', on_delete=models.PROTECT, null=True, blank=True)
     site = models.ForeignKey('netbox.Site', on_delete=models.PROTECT, null=True, blank=True)
@@ -154,10 +155,11 @@ class Incident(BaseModel):
 
 class UpdateIncident(BaseModel):
     incident = models.ForeignKey('Incident', on_delete=models.CASCADE, related_name='updates')
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, verbose_name="Autor")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, verbose_name="Autor", null=True, blank=True)
 
     # Conteúdo (Campos que podem mudar)
     status = models.ForeignKey('Status', on_delete=models.PROTECT)
+    user_updated_at = models.DateTimeField(null=True, blank=True, verbose_name="Data/Hora da Atualização")
     is_impact_active = models.BooleanField(verbose_name="Impacto Ativo?")
     comment = models.TextField(verbose_name="Nota Técnica", null=True, blank=True)
     

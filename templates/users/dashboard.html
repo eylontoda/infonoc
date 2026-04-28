@@ -62,7 +62,7 @@
                         <h3 id="count-normalizados">
                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                         </h3>
-                        <span>Normalizados Hoje</span>
+                        <span>Normalizados (24h)</span>
                     </div>
                 </div>
             </div>
@@ -114,7 +114,7 @@
                         <i class="bi bi-broadcast me-1"></i>Não Normalizados
                     </button>
                     <button class="pill-btn" id="pill-encerrados_hoje" onclick="setFilter('encerrados_hoje')">
-                        <i class="bi bi-check2-circle me-1"></i>Encerrados Hoje
+                        <i class="bi bi-check2-circle me-1"></i>Encerrados (24h)
                     </button>
                     <button class="pill-btn" id="pill-com_afetacao" onclick="setFilter('com_afetacao')">
                         <i class="bi bi-exclamation-triangle me-1"></i>Com Afetação
@@ -289,8 +289,8 @@
     .badge-impact-on  { background: rgba(220,53,69,0.12); color: #dc3545; border: 1px solid rgba(220,53,69,0.25); font-size: 10px; padding: 2px 7px; border-radius: 10px; }
     .badge-impact-off { background: rgba(108,117,125,0.1); color: #6c757d; border: 1px solid rgba(108,117,125,0.2); font-size: 10px; padding: 2px 7px; border-radius: 10px; }
 
-    .card-designator { font-size: 12px; font-weight: 600; color: var(--text-main); }
-    .card-description { font-size: 11px; color: var(--text-muted, #6c757d); line-height: 1.4; }
+    .card-designator { font-size: 11px; font-weight: normal; color: #adb5bd; }
+    .card-description { font-size: 11px; color: #ffffff; font-weight: bold; line-height: 1.4; }
 
     .card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 10px; color: var(--text-muted, #adb5bd); }
     .card-meta i { font-size: 11px; }
@@ -318,6 +318,19 @@
     .progress-warn { background: linear-gradient(90deg, #ffc107, #ffda6a); }
     .progress-crit { background: linear-gradient(90deg, #dc3545, #f04f47); }
     .progress-label { font-size: 10px; color: var(--text-muted, #adb5bd); margin-top: 2px; display: flex; justify-content: space-between; }
+
+    /* Last Update Box */
+    .last-update-box {
+        width: 100%;
+        background: rgba(0,0,0,0.04);
+        padding: 6px;
+        border-radius: 6px;
+        border-left: 2px solid #008891;
+        margin-top: 2px;
+    }
+    [data-bs-theme="dark"] .last-update-box { background: rgba(255,255,255,0.05); }
+    .last-update-text { color: var(--text-main, #333); }
+    [data-bs-theme="dark"] .last-update-text { color: #fff; }
 
     /* Card Actions */
     .card-actions { display: flex; gap: 6px; margin-top: 4px; }
@@ -367,7 +380,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const statsUrl = "{% url 'users:api_dashboard_stats' %}";
 
     let allIncidents = [];
-    let activeFilter = 'todos';
+    let activeFilter = '{{ user.is_superuser|yesno:"em_andamento,todos" }}';
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
     // ── Filtro ──────────────────────────────────────────────────
@@ -396,11 +409,19 @@ document.addEventListener("DOMContentLoaded", function () {
             if (activeFilter === 'em_andamento') {
                 matchFilter = inc.status_name.toLowerCase() !== 'normalizado';
             } else if (activeFilter === 'encerrados_hoje') {
-                // Chamados normalizados com timestamp de hoje
-                const incDate = inc.timestamp_iso ? inc.timestamp_iso.slice(0, 10) : '';
+                // Chamados normalizados nas últimas 24h
                 matchFilter = inc.status_name.toLowerCase() === 'normalizado';
-                // Se tiver data ISO, filtrar por hoje
-                // OBS: usa occured_at; idealmente resolved_at. Assumimos que se normalizado e occured hoje, ok.
+                if (matchFilter && inc.resolved_at_iso) {
+                    const resDate = new Date(inc.resolved_at_iso);
+                    const now = new Date();
+                    const diffMs = now - resDate;
+                    matchFilter = diffMs >= 0 && diffMs <= 86400000; // 24h em ms
+                } else if (matchFilter) {
+                    // Se não tiver resolved_at_iso, mas está normalizado, talvez mostrar? 
+                    // Mas a API deve mandar. Por precaução, se for hoje ainda:
+                    const incDate = inc.timestamp_iso ? inc.timestamp_iso.slice(0, 10) : '';
+                    matchFilter = incDate === new Date().toISOString().slice(0, 10);
+                }
             } else if (activeFilter === 'com_afetacao') {
                 matchFilter = inc.is_impact_active === true;
             } else if (activeFilter === 'sem_afetacao') {
@@ -421,14 +442,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function formatMinutes(min) {
-        if (min <= 0) return '0m';
+        if (min <= 0) return '0min';
         const d = Math.floor(min / 1440);
         const h = Math.floor((min % 1440) / 60);
         const m = min % 60;
         let parts = [];
         if (d > 0) parts.push(`${d}d`);
         if (h > 0) parts.push(`${h}h`);
-        parts.push(`${m}m`);
+        parts.push(`${m}min`);
         return parts.join(' ');
     }
 
@@ -451,7 +472,7 @@ document.addEventListener("DOMContentLoaded", function () {
     function buildProgressHTML(p) {
         if (!p) return '';
         const cls = p.is_overdue ? 'progress-crit' : (p.percent > 75 ? 'progress-warn' : 'progress-ok');
-        const label = p.is_overdue ? `<span style="color:#dc3545">Atrasado ${p.remaining_minutes}min</span>` : `<span>${p.label}</span>`;
+        const label = `<span style="${p.is_overdue ? 'color:#dc3545' : ''}">${p.is_overdue ? 'Atrasado em ' : ''}${p.label}</span>`;
         return `
         <div class="progress-wrap">
             <div class="progress-bar-custom">
@@ -492,10 +513,20 @@ document.addEventListener("DOMContentLoaded", function () {
             <div class="card-designator">${inc.designator || '—'}</div>
             <div class="card-description">${inc.description || '<span class="text-muted fst-italic">Sem descrição</span>'}</div>
 
+            <div class="card-meta" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                <div class="d-flex w-100 justify-content-between">
+                    <span><i class="bi bi-play-circle"></i> Início: ${inc.occured_at}</span>
+                    ${inc.expected_at ? `<span><i class="bi bi-clock-history"></i> Prev: ${inc.expected_at}</span>` : ''}
+                </div>
+                <div class="last-update-box">
+                    <span class="d-block mb-1" style="font-weight: 600; color: #adb5bd;">Última Atualização (${inc.timestamp}):</span>
+                    <span class="d-block last-update-text" style="max-width: 100%; white-space: pre-wrap; word-break: break-word;">${inc.last_update_text || '<span class="text-muted fst-italic">Sem atualizações</span>'}</span>
+                </div>
+            </div>
+
             ${progressHTML}
 
-            <div class="card-meta">
-                <span><i class="bi bi-calendar3"></i> ${inc.timestamp}</span>
+            <div class="card-meta justify-content-between mt-1">
                 <span>${assignedIcon}</span>
                 ${inactBadge}
             </div>
@@ -595,6 +626,17 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     // ── Init ─────────────────────────────────────────────────────
+    // Se for superuser, aplica o visual do filtro inicial
+    if (activeFilter !== 'todos') {
+        const pill = document.getElementById('pill-' + activeFilter);
+        if (pill) pill.classList.add('pill-active');
+        document.querySelectorAll('.pill-btn').forEach(p => {
+            if (p.id !== 'pill-' + activeFilter) p.classList.remove('pill-active');
+        });
+        const ring = document.getElementById('btn-filter-' + activeFilter);
+        if (ring) ring.classList.add('ring-active');
+    }
+
     fetchStats();
     fetchIncidents();
     setInterval(() => { fetchStats(); fetchIncidents(); }, REFRESH_INTERVAL);

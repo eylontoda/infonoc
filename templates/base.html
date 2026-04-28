@@ -159,6 +159,52 @@
             background-color: rgba(220, 53, 69, 0.1) !important;
             color: #ea868f !important;
             border-color: rgba(220, 53, 69, 0.3) !important;
+        /* [NOVO] Botão de Fechar Premium (X) */
+        .offcanvas .btn-close, .modal .btn-close {
+            position: absolute !important;
+            top: 12px !important;
+            right: 12px !important;
+            z-index: 9999 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 28px !important;
+            height: 28px !important;
+            background-color: var(--bg-card) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 50% !important;
+            opacity: 1 !important;
+            background-image: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+        }
+
+        .offcanvas .btn-close::before, .modal .btn-close::before {
+            content: "" !important;
+            display: block !important;
+            width: 12px !important;
+            height: 12px !important;
+            background-color: var(--text-main) !important;
+            -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M.293.293a1 1 0 011.414 0L8 6.586 14.293.293a1 1 0 111.414 1.414L9.414 8l6.293 6.293a1 1 0 01-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 01-1.414-1.414L6.586 8 .293 1.707a1 1 0 010-1.414z'/%3E%3C/svg%3E") no-repeat center !important;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M.293.293a1 1 0 011.414 0L8 6.586 14.293.293a1 1 0 111.414 1.414L9.414 8l6.293 6.293a1 1 0 01-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 01-1.414-1.414L6.586 8 .293 1.707a1 1 0 010-1.414z'/%3E%3C/svg%3E") no-repeat center !important;
+        }
+
+        .offcanvas .btn-close:hover, .modal .btn-close:hover {
+            background-color: #dc3545 !important;
+            border-color: #dc3545 !important;
+            transform: scale(1.1) rotate(90deg) !important;
+        }
+
+        .offcanvas .btn-close:hover::before, .modal .btn-close:hover::before {
+            background-color: #ffffff !important;
+        }
+
+        [data-bs-theme="dark"] .offcanvas .btn-close, [data-bs-theme="dark"] .modal .btn-close {
+            background-color: #1b2a3a !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

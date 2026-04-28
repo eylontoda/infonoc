@@ -315,7 +315,7 @@
                     <div class="status-icon"><i class="bi bi-check-circle"></i></div>
                     <div class="status-info">
                         <h3 id="count-normalizado"><span class="spinner-border spinner-border-sm"></span></h3>
-                        <span>Normalizados Hoje</span>
+                        <span>Normalizados (24h)</span>
                     </div>
                 </div>
             </div>
@@ -545,11 +545,11 @@
                     width: '70px'
                 },
                 {
-                    data: 'timestamp',
+                    data: 'occured_at',
                     className: 'text-center align-middle',
                     defaultContent: 'N/D',
                     width: '95px',
-                    render: (data, type, row) => type === 'sort' ? (row.timestamp_iso || 0) : (data || 'N/D')
+                    render: (data, type, row) => type === 'sort' ? (row.occured_at_iso || 0) : (data || 'N/D')
                 },
                 {
                     data: 'designator',
