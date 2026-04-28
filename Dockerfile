@@ -8,6 +8,12 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   build-essential \
   libpq-dev \
   gettext \
+  libcairo2 \
+  libpango-1.0-0 \
+  libpangocairo-1.0-0 \
+  libgdk-pixbuf2.0-0 \
+  libffi-dev \
+  shared-mime-info \
   && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
   && rm -rf /var/lib/apt/lists/*
 

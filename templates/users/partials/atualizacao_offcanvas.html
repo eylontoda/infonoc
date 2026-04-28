@@ -199,12 +199,17 @@
     <hr>
 
     <!-- Mini-Histórico -->
-    <div class="quick-history">
+    <div class="quick-history" 
+         hx-get="/incidents/history-ajax/{{ incident.mk_protocol }}/" 
+         hx-trigger="atualizacaoTimeline from:body"
+         hx-target="#historyContainer">
         <h6 class="fw-bold mb-3 d-flex justify-content-between align-items-center" style="font-size: 10px;">
             <span><i class="bi bi-clock-history me-1"></i> Registros Anteriores</span>
         </h6>
 
-        {% include 'users/partials/history_timeline.html' %}
+        <div id="historyContainer">
+            {% include 'users/partials/history_timeline.html' %}
+        </div>
     </div>
 </div>
 
@@ -324,6 +329,89 @@
         }
 
         verificarAfetacao(); // Inicializa na carga
+
+        // [NOVO] Handler de Conflito de Horário (Timeline)
+        document.body.addEventListener('conflitoHorario', function(evt) {
+            const data = evt.detail;
+            Swal.fire({
+                title: 'Conflito na Timeline',
+                html: `${data.message}<br><br>Para prosseguir com este horário, você deve remover o registro conflitante ou ajustar o horário manual.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#008891',
+                confirmButtonText: '<i class="bi bi-trash me-2"></i>Apagar último registro',
+                cancelButtonText: 'Ajustar horário'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Chama a rota de exclusão do último update
+                    htmx.ajax('POST', `/incidents/delete-update-ajax/${data.last_update_id}/`, {
+                        headers: {'X-CSRFToken': '{{ csrf_token }}'},
+                        target: '#mensagemErroAtualizacao',
+                        swap: 'innerHTML'
+                    });
+                } else {
+                    // [NOVO] Abre um prompt para editar o horário do REGISTRO ANTERIOR que está em conflito
+                    const lastTimeStr = data.message.includes('(') ? data.message.split('(').pop().split(')')[0] : 'registro anterior';
+                    
+                    Swal.fire({
+                        title: 'Ajustar Registro Anterior',
+                        html: `Digite o novo horário para o registro de <b class="text-danger">${lastTimeStr}</b>:`,
+                        input: 'datetime-local',
+                        inputValue: data.last_update_time_raw,
+                        inputAttributes: {
+                            autofocus: 'true'
+                        },
+                        showCancelButton: true,
+                        confirmButtonText: 'Salvar Novo Horário',
+                        cancelButtonText: 'Voltar',
+                        confirmButtonColor: '#008891',
+                        showLoaderOnConfirm: true,
+                        didOpen: () => {
+                            // Garante que o input seja focalizável e tenha o valor correto
+                            const input = Swal.getInput();
+                            if (input) {
+                                input.value = data.last_update_time_raw;
+                                setTimeout(() => input.focus(), 100);
+                            }
+                        },
+                        preConfirm: (newTime) => {
+                            if (!newTime) {
+                                Swal.showValidationMessage('O horário é obrigatório');
+                                return false;
+                            }
+                            return fetch(`/incidents/ajustar-horario-update-ajax/${data.last_update_id}/`, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRFToken': '{{ csrf_token }}',
+                                    'Content-Type': 'application/x-www-form-urlencoded',
+                                },
+                                body: `new_time=${newTime}`
+                            })
+                            .then(response => response.text())
+                            .then(html => {
+                                document.getElementById('mensagemErroAtualizacao').innerHTML = html;
+                                return true;
+                            })
+                            .catch(error => {
+                                Swal.showValidationMessage(`Erro: ${error}`);
+                            });
+                        },
+                        allowOutsideClick: () => !Swal.isLoading()
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Horário Atualizado!',
+                                text: 'O registro anterior foi corrigido. Agora você pode salvar sua atualização atual.',
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                        }
+                    });
+                }
+            });
+        });
     })();
 </script>
 
@@ -394,5 +482,10 @@
         background-color: #0b141e;
         border-color: #2d3d4d;
         color: #fff;
+    }
+
+    /* Garantir que o SweetAlert2 fique à frente do Offcanvas */
+    .swal2-container {
+        z-index: 10000 !important;
     }
 </style>

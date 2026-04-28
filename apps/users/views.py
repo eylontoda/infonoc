@@ -13,6 +13,7 @@ from asgiref.sync import sync_to_async
 import traceback
 import re
 import json
+from apps.users.utils import format_duration_human, get_detailed_timeline_data
 
 # Importação de todos os modelos necessários
 from apps.incidents.models import (
@@ -25,19 +26,6 @@ from django.db import transaction
 from django.contrib.auth import get_user_model
 User = get_user_model()
 
-def format_duration_human(total_m):
-    """
-    Converte minutos em string amigável: 'Xd Yh Zmin'
-    """
-    if total_m <= 0: return "0min"
-    d = total_m // 1440
-    h = (total_m % 1440) // 60
-    m = total_m % 60
-    parts = []
-    if d > 0: parts.append(f"{d}d")
-    if h > 0: parts.append(f"{h}h")
-    parts.append(f"{m}min")
-    return " ".join(parts)
 
 class UserLoginView(LoginView):
     template_name = 'users/login.html'
@@ -67,6 +55,14 @@ class InformativosView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['apply_preset'] = self.request.session.pop('first_access_after_login', False)
+        return context
+
+class RelatoriosView(LoginRequiredMixin, TemplateView):
+    template_name = 'users/relatorios.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Aqui podemos injetar filtros ou dados iniciais se necessário
         return context
 
 class IncidentDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
@@ -190,6 +186,14 @@ async def detalhe_incidente_ajax(request, protocolo):
             locais_list = [r.name for r in incident.affected_regions.all()]
             locais_afetados = ", ".join(locais_list) if locais_list else "Nenhum local mapeado"
 
+            # [NOVO] Cálculo do Fim da Afetação
+            fim_afetacao = None
+            if not incident.is_impact_active:
+                # Busca o último update que desativou o impacto
+                last_impact_off = incident.updates.filter(is_impact_active=False).order_by('-user_updated_at', '-created_at').first()
+                if last_impact_off:
+                    fim_afetacao = last_impact_off.user_updated_at or last_impact_off.created_at
+
             return {
                 'incident': incident,
                 'status_nome': incident.status.name if incident.status else "Desconhecido",
@@ -209,7 +213,8 @@ async def detalhe_incidente_ajax(request, protocolo):
                 'previsao_color': previsao_color,
                 'afetacao_color': afetacao_color,
                 'historico_updates': historico_updates,
-                'is_dashboard': request.GET.get('source') == 'dashboard'
+                'is_dashboard': request.GET.get('source') == 'dashboard',
+                'fim_afetacao': fim_afetacao
             }
 
         context_data = await process_incident_data()
@@ -225,6 +230,65 @@ async def detalhe_incidente_ajax(request, protocolo):
 
 
 # --- [BOTÃO PLUS] View para Inserir Atualização Rápida ---
+async def extracao_detalhada_ajax(request, protocolo):
+    """
+    Retorna um HTML parcial com a decomposição passo-a-passo da linha do tempo do incidente.
+    """
+    try:
+        user = await request.auser()
+        if not user.is_authenticated:
+            return HttpResponse("<div class='alert alert-warning m-3'>Sessão expirada.</div>", status=401)
+
+        data = await sync_to_async(get_detailed_timeline_data)(protocolo)
+        if not data:
+            return HttpResponse(f"<div class='alert alert-danger m-3'>Protocolo {protocolo} não encontrado.</div>", status=404)
+            
+        return await sync_to_async(render)(request, 'users/partials/relatorio_extracao.html', data)
+
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(error_details)
+        return HttpResponse(f"<div class='alert alert-danger m-3'><strong>Erro no Servidor:</strong> Ocorreu um problema ao gerar o relatório. Entre em contato com o suporte técnico.</div>", status=500)
+
+async def gerar_relatorio_pdf(request, protocolo):
+    """
+    Gera o PDF da extração detalhada do incidente.
+    """
+    try:
+        user = await request.auser()
+        if not user.is_authenticated:
+            return HttpResponse("Não autorizado", status=401)
+            
+        data = await sync_to_async(get_detailed_timeline_data)(protocolo)
+        
+        if not data:
+            return HttpResponse("Protocolo não encontrado.", status=404)
+
+        @sync_to_async
+        def render_pdf(data_ctx):
+            from django.template.loader import render_to_string
+            from weasyprint import HTML, CSS
+            
+            # Render HTML template
+            html_string = render_to_string('users/relatorio_pdf.html', data_ctx)
+            
+            # Generate PDF
+            html = HTML(string=html_string, base_url=request.build_absolute_uri('/'))
+            pdf = html.write_pdf()
+            return pdf
+            
+        pdf_file = await render_pdf(data)
+        
+        response = HttpResponse(pdf_file, content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="Relatorio_Incidente_{protocolo}.pdf"'
+        return response
+        
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return HttpResponse("Erro ao gerar PDF.", status=500)
+
 async def atualizar_incidente_ajax(request, protocolo):
     """
     Carrega o formulário (GET) com variáveis do banco ou processa o salvamento via HTMX (POST).
@@ -261,7 +325,13 @@ async def atualizar_incidente_ajax(request, protocolo):
                 new_impact_level = ImpactLevel.objects.filter(id=impact_level_id).first() if impact_level_id else None
                 new_impact_type = ImpactType.objects.filter(id=impact_type_id).first() if impact_type_id else None
 
-                # --- Lógica de Sincronização e Geração de Histórico (Movida do Model para a View) ---
+                # --- Lógica de Sincronização e Geração de Histórico ---
+                resolved_at_str = request.POST.get('resolved_at')
+                
+                # Se for normalizado e houver data real de normalização, ela prevalece como horário da atualização
+                if new_status and new_status.name.lower() == 'normalizado' and resolved_at_str:
+                    user_updated_at_str = resolved_at_str
+
                 now = timezone.now()
                 user_updated_at = parse_datetime(user_updated_at_str) if user_updated_at_str else now
                 if not user_updated_at:
@@ -277,9 +347,28 @@ async def atualizar_incidente_ajax(request, protocolo):
                         response['HX-Reswap'] = 'none'
                         return response
                     
-                    if user_updated_at < incident.occured_at:
+                    # [REGRA] Não pode ser anterior ao ÚLTIMO update registrado (para manter a coerência da timeline)
+                    last_update_obj = UpdateIncident.objects.filter(incident=incident).order_by('-user_updated_at', '-created_at').first()
+                    limit_time = incident.occured_at
+                    if last_update_obj:
+                        limit_time = last_update_obj.user_updated_at or last_update_obj.created_at
+                    
+                    if user_updated_at < limit_time:
                         response = HttpResponse(status=200)
-                        response['HX-Trigger'] = json.dumps({"erroValidacao": f"A data da atualização não pode ser anterior à abertura ({incident.occured_at.strftime('%d/%m %H:%M')})."})
+                        # Ajuste de Timezone para exibição amigável
+                        tz = timezone.get_current_timezone()
+                        user_local = user_updated_at.astimezone(tz)
+                        limit_local = limit_time.astimezone(tz)
+                        
+                        msg = f"Conflito: O horário informado ({user_local.strftime('%d/%m %H:%M')}) é anterior ao último registro da timeline ({limit_local.strftime('%d/%m %H:%M')})."
+                        response['HX-Trigger'] = json.dumps({
+                            "conflitoHorario": {
+                                "message": msg,
+                                "last_update_id": last_update_obj.id if last_update_obj else None,
+                                "last_update_time_raw": limit_local.strftime('%Y-%m-%dT%H:%M'),
+                                "protocolo": incident.mk_protocol
+                            }
+                        })
                         response['HX-Reswap'] = 'none'
                         return response
 
@@ -420,6 +509,9 @@ async def atualizar_incidente_ajax(request, protocolo):
 
                 # 4. Sincronização e Persistência (Transacional)
                 with transaction.atomic():
+                    # [REGRA] Se já estava normalizado, não gera update de histórico (Timeline)
+                    estava_normalizado = incident.status.name.lower() == 'normalizado'
+
                     # Atualiza o Incidente pai
                     incident.status = new_status or incident.status
                     incident.impact_level = new_impact_level or incident.impact_level
@@ -431,43 +523,54 @@ async def atualizar_incidente_ajax(request, protocolo):
                     incident.last_manual_update_at = user_updated_at # Prioriza manual se houver
                     
                     # Outras relações específicas da View
-                    # client_type e sla movidos para Edição Mestra
                     if new_status and new_status.name.lower() == 'escalonado' and assigned_to_id:
                         incident.assigned_to_id = assigned_to_id
                     
-                        # Detecção de Encerramento (Campos extras apenas)
-                        if incident.status.name.lower() in ['normalizado', 'resolvido', 'encerrado'] and not incident.resolved_at:
+                    # Detecção de Encerramento (Campos extras de normalização)
+                    is_norm = incident.status.name.lower() in ['normalizado', 'resolvido', 'encerrado']
+                    if is_norm:
+                        if root_cause_id: incident.root_cause_id = root_cause_id
+                        if note_text: incident.note = note_text
+                        if rfo_text: incident.rfo = rfo_text
+                        
+                        # Se houver uma data real de normalização informada, ela sincroniza com o resolved_at
+                        if resolved_at_str:
+                            res_dt = parse_datetime(resolved_at_str)
+                            if res_dt:
+                                if timezone.is_naive(res_dt):
+                                    res_dt = timezone.make_aware(res_dt)
+                                incident.resolved_at = res_dt
+                        elif not incident.resolved_at:
+                            # Caso não informada mas o status seja de fechamento, usa o agora
                             incident.resolved_at = now
-                            if root_cause_id: incident.root_cause_id = root_cause_id
-                            if note_text: incident.note = note_text
-                            if rfo_text: incident.rfo = rfo_text
 
                     incident.save()
 
-                    # Cria o registro de atualização no histórico
-                    update_obj = UpdateIncident.objects.create(
-                        incident=incident,
-                        created_by=user,
-                        status=incident.status,
-                        is_impact_active=incident.is_impact_active,
-                        comment=comment_text,
-                        user_updated_at=user_updated_at,
-                        impact_level=incident.impact_level,
-                        impact_type=incident.impact_type,
-                        expected_at=incident.expected_at,
-                        stopped_at=incident.stopped_at,
-                        time_elapsed=time_elapsed
-                    )
+                    # Só cria o registro de atualização no histórico se NÃO estava normalizado anteriormente
+                    if not estava_normalizado:
+                        update_obj = UpdateIncident.objects.create(
+                            incident=incident,
+                            created_by=user,
+                            status=incident.status,
+                            is_impact_active=incident.is_impact_active,
+                            comment=comment_text,
+                            user_updated_at=user_updated_at,
+                            impact_level=incident.impact_level,
+                            impact_type=incident.impact_type,
+                            expected_at=incident.expected_at,
+                            stopped_at=incident.stopped_at,
+                            time_elapsed=time_elapsed
+                        )
 
-                    # Atribui as tags de mudança
-                    if detected_slugs:
-                        tags = UpdateTag.objects.filter(slug__in=detected_slugs)
-                        update_obj.tags.set(tags)
-                    
-                    # Tag de Novo Comentário (se for manual)
-                    if not comment_text.startswith('[SISTEMA]'):
-                        comment_tag = UpdateTag.objects.filter(slug='is_new_comment').first()
-                        if comment_tag: update_obj.tags.add(comment_tag)
+                        # Atribui as tags de mudança
+                        if detected_slugs:
+                            tags = UpdateTag.objects.filter(slug__in=detected_slugs)
+                            update_obj.tags.set(tags)
+                        
+                        # Tag de Novo Comentário (se for manual)
+                        if not comment_text.startswith('[SISTEMA]'):
+                            comment_tag = UpdateTag.objects.filter(slug='is_new_comment').first()
+                            if comment_tag: update_obj.tags.add(comment_tag)
 
                 return True
                 
@@ -1346,3 +1449,127 @@ async def novo_incidente_ajax(request):
     except Exception as e:
         error_msg = f"<strong>Erro:</strong> {str(e)}<br><small>{traceback.format_exc()}</small>"
         return HttpResponse(f"<div class='alert alert-danger m-3' style='font-size: 11px;'>{error_msg}</div>")
+
+async def excluir_ultimo_update_ajax(request, update_id):
+    """
+    Exclui um registro de atualização específico (usado para resolver conflitos de timeline).
+    """
+    try:
+        user = await request.auser()
+        if not user.is_authenticated:
+            return HttpResponse("Não autorizado", status=401)
+
+        @sync_to_async
+        def delete_update():
+            update_obj = UpdateIncident.objects.select_related('incident').filter(id=update_id).first()
+            if not update_obj:
+                return "Registro não encontrado."
+            
+            incident = update_obj.incident
+            # Só permite excluir se for o ÚLTIMO update do chamado
+            last_update = UpdateIncident.objects.filter(incident=incident).order_by('-user_updated_at', '-created_at').first()
+            
+            if last_update and last_update.id != int(update_id):
+                return "Só é possível excluir o último registro da timeline para evitar furos no histórico."
+
+            with transaction.atomic():
+                update_obj.delete()
+                # Opcional: Reverter o status do incidente para o status do update anterior
+                prev_update = UpdateIncident.objects.filter(incident=incident).order_by('-user_updated_at', '-created_at').first()
+                if prev_update:
+                    incident.status = prev_update.status
+                    incident.is_impact_active = prev_update.is_impact_active
+                    incident.impact_level = prev_update.impact_level
+                    incident.impact_type = prev_update.impact_type
+                    incident.expected_at = prev_update.expected_at
+                    incident.save()
+                else:
+                    # Se não houver mais updates, volta ao estado inicial? (Raro)
+                    pass
+
+            return True
+
+        result = await delete_update()
+        if result is True:
+            return HttpResponse("<div class='alert alert-success small p-2 mb-0'>Registro removido. Tente salvar novamente.</div>")
+        else:
+            return HttpResponse(f"<div class='alert alert-warning small p-2 mb-0'>{result}</div>")
+
+    except Exception as e:
+        return HttpResponse(f"Erro: {str(e)}", status=500)
+
+async def ajustar_horario_update_ajax(request, update_id):
+    """
+    Ajusta apenas o horário (user_updated_at) de um registro de atualização.
+    """
+    try:
+        user = await request.auser()
+        if not user.is_authenticated:
+            return HttpResponse("Não autorizado", status=401)
+
+        new_time_str = request.POST.get('new_time')
+        if not new_time_str:
+            return HttpResponse("Horário não informado.", status=400)
+
+        new_time = parse_datetime(new_time_str)
+        if not new_time:
+            return HttpResponse("Formato de data inválido.", status=400)
+            
+        if timezone.is_naive(new_time):
+            new_time = timezone.make_aware(new_time)
+
+        @sync_to_async
+        def update_time():
+            update_obj = UpdateIncident.objects.select_related('incident').filter(id=update_id).first()
+            if not update_obj:
+                return "Registro não encontrado."
+            
+            # Validação: O novo horário do registro anterior também não pode ser futuro
+            if new_time > timezone.now():
+                return "O novo horário não pode ser uma data futura."
+            
+            # Validação: Não pode ser anterior à abertura do chamado
+            if new_time < update_obj.incident.occured_at:
+                return "O horário não pode ser anterior à abertura do chamado."
+
+            update_obj.user_updated_at = new_time
+            update_obj.save()
+            return True
+
+        result = await update_time()
+        if result is True:
+            response = HttpResponse("<div class='alert alert-success small p-2 mb-0'>Horário do registro anterior atualizado! Tente salvar novamente.</div>")
+            response['HX-Trigger'] = 'atualizacaoTimeline' # Dispara refresh da timeline local
+            return response
+        else:
+            return HttpResponse(f"<div class='alert alert-warning small p-2 mb-0'>{result}</div>")
+
+    except Exception as e:
+        return HttpResponse(f"Erro: {str(e)}", status=500)
+
+async def historico_incidente_ajax(request, protocolo):
+    """
+    Retorna apenas o partial da timeline de histórico de um incidente.
+    """
+    try:
+        user = await request.auser()
+        if not user.is_authenticated:
+            return HttpResponse("Não autorizado", status=401)
+
+        @sync_to_async
+        def get_incident_history():
+            incident = Incident.objects.prefetch_related(
+                'updates__created_by', 
+                'updates__status', 
+                'updates__tags'
+            ).filter(mk_protocol=protocolo).first()
+            return incident
+
+        incident = await get_incident_history()
+        if not incident:
+            return HttpResponse("Incidente não encontrado.", status=404)
+
+        return await sync_to_async(render)(request, 'users/partials/history_timeline.html', {'incident': incident})
+
+    except Exception as e:
+        return HttpResponse(f"Erro: {str(e)}", status=500)

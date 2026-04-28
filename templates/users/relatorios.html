@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Relatórios - Infonoc{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
+<style>
+    :root {
+        --bg-card: #ffffff;
+        --border-color: #e2e8f0;
+        --primary-color: #008891;
+    }
+
+    [data-bs-theme="dark"] {
+        --bg-card: #1a222c;
+        --border-color: #2d3748;
+    }
+
+    .report-card {
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .nav-pills-custom .nav-link {
+        color: #64748b;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 0.6rem 1.2rem;
+        transition: all 0.3s;
+    }
+
+    .nav-pills-custom .nav-link.active {
+        background-color: var(--primary-color);
+        color: white;
+    }
+
+    .table-massivos {
+        font-size: 11px;
+    }
+
+    .search-protocol-box {
+        max-width: 400px;
+    }
+
+    .btn-export {
+        font-size: 11px;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0">Central de Relatórios</h4>
+        <ul class="nav nav-pills nav-pills-custom" id="reportTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="dados-tab" data-bs-toggle="pill" data-bs-target="#tab-dados" type="button" role="tab">
+                    <i class="bi bi-grid-3x3-gap me-2"></i>Dados Massivos
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="extracao-tab" data-bs-toggle="pill" data-bs-target="#tab-extracao" type="button" role="tab">
+                    <i class="bi bi-search me-2"></i>Extração de Chamado
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <div class="tab-content" id="reportTabsContent">
+        <!-- ABA 1: DADOS MASSIVOS -->
+        <div class="tab-pane fade show active" id="tab-dados" role="tabpanel">
+            <div class="report-card animate__animated animate__fadeIn">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0" style="font-size: 14px;">Consulta de Incidentes</h5>
+                    <div id="table-actions"></div>
+                </div>
+                <div class="table-responsive">
+                    <table id="tabelaMassivos" class="table table-hover table-massivos w-100">
+                        <thead>
+                            <tr>
+                                <th>Protocolo</th>
+                                <th>Início</th>
+                                <th>Status</th>
+                                <th>Tipo</th>
+                                <th>Designador</th>
+                                <th>Fornecedor</th>
+                                <th>SLA</th>
+                                <th>Tempo Total</th>
+                                <th>Tempo Afetação</th>
+                                <th>Causa Raiz</th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA 2: EXTRAÇÃO DE CHAMADO -->
+        <div class="tab-pane fade" id="tab-extracao" role="tabpanel">
+            <div class="report-card animate__animated animate__fadeIn">
+                <h5 class="fw-bold mb-3" style="font-size: 14px;">Análise Detalhada de Timeline</h5>
+                <div class="search-protocol-box mb-4">
+                    <div class="input-group">
+                        <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" id="protocolInput" class="form-control border-start-0 shadow-none" placeholder="Digite o protocolo (ex: 20240428...)" autocomplete="off">
+                        <button class="btn btn-primary px-4" type="button" id="btnSearchProtocol">Analisar</button>
+                    </div>
+                    <small class="text-muted mt-2 d-block" style="font-size: 10px;">Insira o protocolo completo para extrair todos os cálculos de SLA e períodos de afetação.</small>
+                </div>
+
+                <div id="extracaoResultArea">
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-clipboard-data" style="font-size: 3rem; opacity: 0.2;"></i>
+                        <p class="mt-3">Aguardando protocolo para análise...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    // ── Tabela de Dados Massivos ──────────────────────────────────────────
+    const table = $('#tabelaMassivos').DataTable({
+        ajax: {
+            url: '{% url "users:api_incidents_list" %}', // Reutilizando a API existente
+            dataSrc: ''
+        },
+        columns: [
+            { data: 'protocol' },
+            { 
+                data: 'occured_at',
+                render: function(data) { return data ? new Date(data).toLocaleString('pt-BR') : 'N/D'; }
+            },
+            { data: 'status' },
+            { data: 'type' },
+            { data: 'circuit_name' },
+            { data: 'provider' },
+            { data: 'sla_name' },
+            { data: 'total_duration_str' },
+            { data: 'impact_duration_str' },
+            { data: 'root_cause' }
+        ],
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/pt-BR.json'
+        },
+        dom: 'Bfrtip',
+        buttons: [
+            {
+                extend: 'excelHtml5',
+                text: '<i class="bi bi-file-earmark-excel me-1"></i> Exportar Excel',
+                className: 'btn btn-success btn-sm btn-export',
+                title: 'Relatorio_Incidentes_' + new Date().toLocaleDateString()
+            },
+            {
+                extend: 'csvHtml5',
+                text: '<i class="bi bi-file-earmark-csv me-1"></i> CSV',
+                className: 'btn btn-secondary btn-sm btn-export'
+            }
+        ],
+        pageLength: 25,
+        order: [[1, 'desc']]
+    });
+
+    // Mover botões para a área customizada
+    table.buttons().container().appendTo('#table-actions');
+
+    // ── Extração de Chamado ──────────────────────────────────────────────
+    $('#btnSearchProtocol').on('click', function() {
+        const protocol = $('#protocolInput').val().trim();
+        if (!protocol) return;
+
+        const resultArea = $('#extracaoResultArea');
+        resultArea.html(`
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2 text-muted">Extraindo e calculando linha do tempo...</p>
+            </div>`);
+
+        htmx.ajax('GET', `/api/relatorios/extracao/${protocol}/`, {
+            target: '#extracaoResultArea',
+            swap: 'innerHTML'
+        });
+    });
+
+    // Permitir Enter no input
+    $('#protocolInput').on('keypress', function(e) {
+        if(e.which == 13) $('#btnSearchProtocol').click();
+    });
+});
+</script>
+{% endblock %}

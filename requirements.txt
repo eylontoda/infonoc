@@ -17,3 +17,5 @@ django-debug-toolbar==4.3.0
 Werkzeug==3.1.8
 MarkupSafe==3.0.3
 pysqlite3-binary==0.5.1
+weasyprint==62.1
+pydyf==0.11.0

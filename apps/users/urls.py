@@ -23,6 +23,11 @@ urlpatterns = [
     # Página de Informativos
     path('informativos/', views.InformativosView.as_view(), name='informativos'),
     
+    # [NOVO] Página de Relatórios
+    path('relatorios/', views.RelatoriosView.as_view(), name='relatorios'),
+    path('api/relatorios/extracao/<str:protocolo>/', views.extracao_detalhada_ajax, name='extracao_detalhada_ajax'),
+    path('api/relatorios/extracao/<str:protocolo>/pdf/', views.gerar_relatorio_pdf, name='gerar_relatorio_pdf'),
+    
 
     # ==============================================================================
     # [NOVO] ROTAS HTMX / OFFCANVAS
@@ -30,6 +35,9 @@ urlpatterns = [
     # ==============================================================================
     path('incidents/detalhe-ajax/<str:protocolo>/', views.detalhe_incidente_ajax, name='detalhe_incidente_ajax'),
     path('incidents/atualizar-ajax/<str:protocolo>/', views.atualizar_incidente_ajax, name='atualizar_incidente_ajax'),
+    path('incidents/delete-update-ajax/<int:update_id>/', views.excluir_ultimo_update_ajax, name='excluir_ultimo_update_ajax'),
+    path('incidents/ajustar-horario-update-ajax/<int:update_id>/', views.ajustar_horario_update_ajax, name='ajustar_horario_update_ajax'),
+    path('incidents/history-ajax/<str:protocolo>/', views.historico_incidente_ajax, name='historico_incidente_ajax'),
     path('incidents/editar-ajax/<str:protocolo>/', views.editar_incidente_ajax, name='editar_incidente_ajax'),
     path('incidents/resgatar-ajax/<str:protocolo>/', views.resgatar_incidente_ajax, name='resgatar_incidente_ajax'),
     path('incidents/liberar-ajax/<str:protocolo>/', views.liberar_incidente_ajax, name='liberar_incidente_ajax'),

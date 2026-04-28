@@ -1,0 +1,230 @@
+<div class="animate__animated animate__fadeIn">
+    <!-- CABEÇALHO ITSM -->
+    <div class="d-flex justify-content-between align-items-start mb-4 border-bottom pb-3">
+        <div>
+            <h4 class="fw-bold text-primary mb-1">Relatório de Incidente ITSM</h4>
+            <p class="text-muted mb-0 small">
+                Protocolo: <span class="fw-bold">{{ incident.mk_protocol }}</span> | 
+                Início: {{ incident.occured_at|date:"d/m/Y H:i" }} 
+                {% if incident.resolved_at %}| Término: {{ incident.resolved_at|date:"d/m/Y H:i" }}{% endif %}
+            </p>
+            <p class="text-muted mb-0 mt-1" style="font-size: 9px;">Gerado em: {{ now|date:"d/m/Y H:i" }}</p>
+        </div>
+        <div class="text-end">
+            <a href="{% url 'users:gerar_relatorio_pdf' incident.mk_protocol %}" target="_blank" class="btn btn-sm btn-outline-danger me-2 shadow-sm">
+                <i class="bi bi-file-earmark-pdf-fill me-1"></i> Baixar PDF
+            </a>
+            <span class="badge {% if sla_met %}bg-success{% else %}bg-danger{% endif %} p-2 px-3 align-middle" style="font-size: 12px;">
+                <i class="bi {% if sla_met %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-1"></i>
+                SLA: {% if sla_met %}CONFORMIDADE{% else %}VIOLADO{% endif %}
+            </span>
+        </div>
+    </div>
+
+    <!-- BLOCO 1: RESUMO EXECUTIVO -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card h-100 border shadow-xs bg-body-tertiary">
+                <div class="card-body p-3">
+                    <h6 class="text-muted fw-bold text-uppercase mb-3" style="font-size: 9px;">Prazos e Acordos</h6>
+                    <div class="mb-2">
+                        <small class="d-block text-muted">SLA Definido:</small>
+                        <span class="fw-bold">{{ sla_limit_str }}</span>
+                    </div>
+                    <div>
+                        <small class="d-block text-muted">Tempo de Indisponibilidade:</small>
+                        <span class="fw-bold {% if not sla_met %}text-danger{% endif %}">{{ total_impact_str }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 border shadow-xs bg-body-tertiary">
+                <div class="card-body p-3">
+                    <h6 class="text-muted fw-bold text-uppercase mb-3" style="font-size: 9px;">Categorização</h6>
+                    <div class="mb-2">
+                        <small class="d-block text-muted">Tipo de Incidente:</small>
+                        <span class="fw-bold">{{ incident.incident_type.name }}</span>
+                    </div>
+                    <div>
+                        <small class="d-block text-muted">Sintoma Reportado:</small>
+                        <span class="fw-bold">{{ incident.reported_symptom.name|default:"N/D" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 border shadow-xs bg-body-tertiary">
+                <div class="card-body p-3">
+                    <h6 class="text-muted fw-bold text-uppercase mb-3" style="font-size: 9px;">Impacto do Negócio</h6>
+                    <div class="mb-2">
+                        <small class="d-block text-muted">Nível de Impacto:</small>
+                        <span class="fw-bold">{{ incident.impact_level.name|default:"N/D" }}</span>
+                    </div>
+                    <div>
+                        <small class="d-block text-muted">Afetação de Clientes:</small>
+                        <span class="fw-bold">{{ incident.client_type.name|default:"N/D" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 border shadow-xs bg-body-tertiary">
+                <div class="card-body p-3">
+                    <h6 class="text-muted fw-bold text-uppercase mb-3" style="font-size: 9px;">Responsabilidade</h6>
+                    <div class="mb-2">
+                        <small class="d-block text-muted">Analista Designado:</small>
+                        <span class="fw-bold">{{ incident.assigned_to.get_full_name|default:incident.assigned_to.username|default:"N/D" }}</span>
+                    </div>
+                    <div>
+                        <small class="d-block text-muted">Origem Detecção:</small>
+                        <span class="fw-bold">{{ incident.detection_source.name|default:"N/D" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BLOCO 2: DETALHES TÉCNICOS E INFRAESTRUTURA -->
+    <div class="card mb-4 border shadow-xs">
+        <div class="card-header bg-transparent py-2">
+            <h6 class="mb-0 fw-bold" style="font-size: 12px;"><i class="bi bi-diagram-3 me-2"></i>Escopo e Infraestrutura Afetada</h6>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm table-borderless mb-0" style="font-size: 11px;">
+                <tbody>
+                    <tr>
+                        <td class="ps-3 text-muted" width="150">Elemento Principal:</td>
+                        <td class="fw-bold">
+                            {% if incident.site %}{{ incident.site.name }} (Site){% elif incident.circuit %}{{ incident.circuit.name }} (Circuito){% elif incident.device %}{{ incident.device.name }} (Dispositivo){% else %}N/D{% endif %}
+                        </td>
+                        <td class="ps-3 text-muted" width="150">Fornecedor:</td>
+                        <td class="fw-bold">
+                            {% if incident.circuit %}{{ incident.circuit.provider.name }}
+                            {% elif incident.site %}{{ incident.site.tenant.name }}
+                            {% elif incident.device %}{{ incident.device.vendor.name|default:"N/D" }}
+                            {% else %}N/D{% endif %}
+                        </td>
+                    </tr>
+                    <tr class="border-top">
+                        <td class="ps-3 text-muted">Causa Raiz:</td>
+                        <td class="fw-bold text-primary">{{ incident.root_cause.name|default:"Pendente de análise" }}</td>
+                        <td class="text-muted">Tipo de Afetação:</td>
+                        <td class="fw-bold">{{ incident.impact_type.name|default:"N/D" }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- BLOCO 3: RFO (Reason For Outage) -->
+    <div class="card mb-4 border shadow-xs border-start-4 border-start-primary">
+        <div class="card-header bg-transparent py-2">
+            <h6 class="mb-0 fw-bold" style="font-size: 12px;"><i class="bi bi-file-earmark-text me-2"></i>Análise de Resolução (RFO)</h6>
+        </div>
+        <div class="card-body p-3">
+            <div class="mb-3">
+                <small class="text-muted fw-bold d-block mb-1">Descrição Inicial:</small>
+                <div class="p-3 rounded border-start border-4 border-info shadow-sm description-box" style="font-size: 11px; white-space: pre-wrap;">{{ incident.description }}</div>
+            </div>
+            {% if incident.rfo %}
+            <div>
+                <small class="text-muted fw-bold d-block mb-1">Relatório Final (RFO):</small>
+                <div class="p-2 rounded border rfo-box" style="font-size: 11px; white-space: pre-wrap;">{{ incident.rfo }}</div>
+            </div>
+            {% else %}
+            <div class="text-center py-2 text-muted italic" style="font-size: 11px;">RFO ainda não preenchido pelo analista.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- BLOCO 4: TIMELINE AUDITÁVEL (O coração do ITSM) -->
+    <h6 class="fw-bold mb-3" style="font-size: 12px;"><i class="bi bi-list-check me-2"></i>Trilha de Auditoria e Cronologia de Afetação</h6>
+    <div class="table-responsive border rounded">
+        <table class="table table-hover table-sm mb-0" style="font-size: 10px;">
+            <thead class="table-dark">
+                <tr>
+                    <th class="ps-3">Início</th>
+                    <th>Término</th>
+                    <th>Duração</th>
+                    <th class="text-center">Afetação</th>
+                    <th>Evento / Etapa</th>
+                    <th>Responsável</th>
+                    <th width="30%">Comentário Técnico</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for segment in segments %}
+                <tr class="{% if segment.impacto %}table-danger-subtle{% endif %}">
+                    <td class="ps-3 font-monospace">{{ segment.de|date:"d/m/Y H:i:s" }}</td>
+                    <td class="font-monospace">
+                        {% if segment.ate %}
+                            {{ segment.ate|date:"d/m/Y H:i:s" }}
+                        {% else %}
+                            <span class="badge bg-secondary-subtle text-dark border">Conclusão</span>
+                        {% endif %}
+                    </td>
+                    <td class="fw-bold">{{ segment.duracao_str }}</td>
+                    <td class="text-center">
+                        {% if segment.impacto %}
+                            <span class="badge rounded-pill bg-danger">Sim</span>
+                        {% else %}
+                            <span class="badge rounded-pill bg-success">Não</span>
+                        {% endif %}
+                    </td>
+                    <td class="fw-bold">{{ segment.evento }}</td>
+                    <td>{{ segment.autor }}</td>
+                    <td class="text-muted small italic">{{ segment.comentario|truncatewords:20 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="table-dark">
+                <tr class="fw-bold">
+                    <td colspan="2" class="text-end ps-3 py-3" style="font-size: 11px;">TEMPO TOTAL DE INDISPONIBILIDADE (SLA):</td>
+                    <td class="text-warning py-3" style="font-size: 14px;">{{ total_impact_str }}</td>
+                    <td colspan="4"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div class="mt-4 text-center">
+        <p class="text-muted" style="font-size: 9px;">Documento gerado automaticamente pelo Sistema Sea Telecom NOC. Todos os tempos são baseados na trilha de auditoria do banco de dados.</p>
+    </div>
+</div>
+
+<style>
+    /* Estilos de Tema para o Relatório */
+    .description-box {
+        background-color: #f0f7f8;
+        color: #1a3c40;
+    }
+    .rfo-box {
+        background-color: #f8f9fa;
+    }
+
+    /* Suporte a Dark Mode */
+    [data-bs-theme="dark"] .description-box {
+        background-color: #0d1b2a !important;
+        color: #e1e1e1 !important;
+        border-color: #008891 !important;
+    }
+    [data-bs-theme="dark"] .rfo-box {
+        background-color: #162434 !important;
+        border-color: #2d3d4d !important;
+    }
+    [data-bs-theme="dark"] .bg-body-tertiary {
+        background-color: #121e2d !important;
+        border-color: #2d3d4d !important;
+    }
+    [data-bs-theme="dark"] .card {
+        background-color: #0b141e !important;
+        border-color: #2d3d4d !important;
+    }
+    [data-bs-theme="dark"] .table-hover tbody tr:hover {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+    }
+    [data-bs-theme="dark"] .border {
+        border-color: #2d3d4d !important;
+    }
+</style>

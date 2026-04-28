@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório de Incidente ITSM - {{ incident.mk_protocol }}</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 1.5cm;
+            @bottom-center {
+                content: "Relatório de Incidente ITSM - Página " counter(page) " de " counter(pages);
+                font-size: 8pt;
+                color: #6c757d;
+                font-family: Arial, sans-serif;
+            }
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 10pt;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            color: #0d1b2a;
+        }
+
+        .header {
+            border-bottom: 2px solid #008891;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .header-table td {
+            vertical-align: middle;
+        }
+
+        .logo {
+            max-width: 150px;
+        }
+
+        .title {
+            text-align: right;
+        }
+        
+        .title h2 {
+            margin: 0;
+            font-size: 18pt;
+            color: #1a3c40;
+        }
+        
+        .title p {
+            margin: 5px 0 0;
+            font-size: 10pt;
+            color: #6c757d;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 9pt;
+            color: white;
+            text-transform: uppercase;
+        }
+
+        .bg-success { background-color: #198754; }
+        .bg-danger { background-color: #dc3545; }
+        
+        .section-title {
+            background-color: #f0f7f8;
+            border-left: 4px solid #008891;
+            padding: 5px 10px;
+            font-size: 11pt;
+            font-weight: bold;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            color: #1a3c40;
+        }
+
+        /* Tabela de Dados */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            font-size: 9pt;
+        }
+
+        .info-table th {
+            text-align: left;
+            padding: 6px;
+            background-color: #f8f9fa;
+            color: #6c757d;
+            border: 1px solid #dee2e6;
+            width: 25%;
+        }
+
+        .info-table td {
+            padding: 6px;
+            border: 1px solid #dee2e6;
+            font-weight: bold;
+        }
+
+        /* Caixas de Texto (RFO, Descrição) */
+        .text-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 9pt;
+            white-space: pre-wrap;
+            margin-bottom: 15px;
+        }
+
+        /* Timeline Table */
+        .timeline-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8pt;
+            margin-top: 10px;
+        }
+
+        .timeline-table th {
+            background-color: #1a3c40;
+            color: white;
+            padding: 8px;
+            text-align: left;
+            border: 1px solid #1a3c40;
+        }
+
+        .timeline-table td {
+            padding: 8px;
+            border: 1px solid #dee2e6;
+            vertical-align: top;
+        }
+
+        .timeline-table tr.highlight {
+            background-color: #fff5f5;
+        }
+
+        .timeline-table tfoot th {
+            background-color: #343a40;
+            color: white;
+            text-align: right;
+            padding: 10px;
+            border: 1px solid #343a40;
+        }
+
+        .timeline-table tfoot td {
+            background-color: #343a40;
+            color: #ffc107;
+            font-weight: bold;
+            font-size: 10pt;
+            padding: 10px;
+            border: 1px solid #343a40;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- CABEÇALHO -->
+    <div class="header">
+        <table class="header-table">
+            <tr>
+                <td>
+                    <img src="/static/img/logo_sea_telecom.png" class="logo" alt="Sea Telecom">
+                </td>
+                <td class="title">
+                    <h2>Relatório de Incidente ITSM</h2>
+                    <p>
+                        Protocolo: <strong>{{ incident.mk_protocol }}</strong><br>
+                        Gerado em: {{ now|date:"d/m/Y H:i" }}
+                    </p>
+                    <div style="margin-top: 10px;">
+                        <span class="badge {% if sla_met %}bg-success{% else %}bg-danger{% endif %}">
+                            SLA: {% if sla_met %}CONFORMIDADE{% else %}VIOLADO{% endif %}
+                        </span>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- BLOCO 1: INFORMAÇÕES GERAIS -->
+    <div class="section-title">Resumo Executivo e Categorização</div>
+    <table class="info-table">
+        <tr>
+            <th>Tipo de Incidente:</th>
+            <td>{{ incident.incident_type.name|default:"N/D" }}</td>
+            <th>Sintoma Reportado:</th>
+            <td>{{ incident.reported_symptom.name|default:"N/D" }}</td>
+        </tr>
+        <tr>
+            <th>Nível de Impacto:</th>
+            <td>{{ incident.impact_level.name|default:"N/D" }}</td>
+            <th>Afetação de Clientes:</th>
+            <td>{{ incident.client_type.name|default:"N/D" }}</td>
+        </tr>
+        <tr>
+            <th>Analista Designado:</th>
+            <td>{{ incident.assigned_to.get_full_name|default:incident.assigned_to.username|default:"N/D" }}</td>
+            <th>Origem Detecção:</th>
+            <td>{{ incident.detection_source.name|default:"N/D" }}</td>
+        </tr>
+        <tr>
+            <th>SLA Definido:</th>
+            <td>{{ sla_limit_str }}</td>
+            <th>Início do Incidente:</th>
+            <td>{{ incident.occured_at|date:"d/m/Y H:i" }}</td>
+        </tr>
+    </table>
+
+    <!-- BLOCO 2: INFRAESTRUTURA -->
+    <div class="section-title">Escopo e Infraestrutura Afetada</div>
+    <table class="info-table">
+        <tr>
+            <th>Elemento Principal:</th>
+            <td>
+                {% if incident.site %}{{ incident.site.name }} (Site)
+                {% elif incident.circuit %}{{ incident.circuit.name }} (Circuito)
+                {% elif incident.device %}{{ incident.device.name }} (Dispositivo)
+                {% else %}N/D{% endif %}
+            </td>
+            <th>Fornecedor:</th>
+            <td>
+                {% if incident.circuit %}{{ incident.circuit.provider.name }}
+                {% elif incident.site %}{{ incident.site.tenant.name }}
+                {% elif incident.device %}{{ incident.device.vendor.name|default:"N/D" }}
+                {% else %}N/D{% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>Causa Raiz:</th>
+            <td style="color: #0d6efd;">{{ incident.root_cause.name|default:"Pendente de análise" }}</td>
+            <th>Tipo de Afetação:</th>
+            <td>{{ incident.impact_type.name|default:"N/D" }}</td>
+        </tr>
+    </table>
+
+    <!-- BLOCO 3: RFO E DESCRIÇÃO -->
+    <div class="section-title">Análise de Resolução (RFO)</div>
+    <h4 style="margin-bottom: 5px; font-size: 10pt; color: #6c757d;">Descrição Inicial:</h4>
+    <div class="text-box" style="border-left: 4px solid #008891; background-color: #f0f7f8; color: #1a3c40;">
+{{ incident.description }}
+    </div>
+
+    <h4 style="margin-bottom: 5px; font-size: 10pt; color: #6c757d;">Relatório Final (RFO):</h4>
+    <div class="text-box">
+{% if incident.rfo %}{{ incident.rfo }}{% else %}<span style="font-style: italic; color: #999;">RFO ainda não preenchido pelo analista.</span>{% endif %}
+    </div>
+
+    <!-- BLOCO 4: TIMELINE -->
+    <div class="section-title" style="page-break-before: auto;">Trilha de Auditoria e Cronologia de Afetação</div>
+    <table class="timeline-table">
+        <thead>
+            <tr>
+                <th style="width: 12%;">Início</th>
+                <th style="width: 12%;">Término</th>
+                <th style="width: 8%;">Duração</th>
+                <th style="width: 8%; text-align: center;">Afet.</th>
+                <th style="width: 20%;">Evento / Etapa</th>
+                <th style="width: 10%;">Responsável</th>
+                <th style="width: 30%;">Comentário Técnico</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for segment in segments %}
+            <tr class="{% if segment.impacto %}highlight{% endif %}">
+                <td>{{ segment.de|date:"d/m/Y H:i:s" }}</td>
+                <td>
+                    {% if segment.ate %}
+                        {{ segment.ate|date:"d/m/Y H:i:s" }}
+                    {% else %}
+                        <i>Conclusão</i>
+                    {% endif %}
+                </td>
+                <td><strong>{{ segment.duracao_str }}</strong></td>
+                <td style="text-align: center;">
+                    {% if segment.impacto %}
+                        <span style="color: #dc3545; font-weight: bold;">Sim</span>
+                    {% else %}
+                        <span style="color: #198754; font-weight: bold;">Não</span>
+                    {% endif %}
+                </td>
+                <td><strong>{{ segment.evento }}</strong></td>
+                <td>{{ segment.autor }}</td>
+                <td style="color: #6c757d;">{{ segment.comentario }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="2">TEMPO TOTAL DE INDISPONIBILIDADE (SLA):</th>
+                <td colspan="5">{{ total_impact_str }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+</body>
+</html>
