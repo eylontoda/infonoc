@@ -49,7 +49,7 @@ class Site(BaseModel):
     coordinate = models.CharField(max_length=50, null=True, blank=True)
     physical_address = models.TextField(null=True, blank=True)
     site_type = models.ForeignKey(SiteType, on_delete=models.PROTECT)
-    contract_energy = models.CharField(max_length=50, unique=True, null=True, blank=True)
+    contract_energy = models.CharField(max_length=100, unique=True, null=True, blank=True)
     netbox_status = models.ForeignKey(NetboxStatus, on_delete=models.PROTECT, null=True, blank=True)
     tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, null=True, blank=True)
     history = HistoricalRecords()
