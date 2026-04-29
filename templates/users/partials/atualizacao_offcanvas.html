@@ -189,6 +189,34 @@
         </div>
 
 
+        <!-- [NOVO] Protocolo de Operadora (Visível apenas para terceiros) -->
+        {% if is_third_party %}
+        <div class="border rounded mb-2 bg-warning-subtle p-2 animate-fade-in" style="border-left: 4px solid #ffc107 !important;">
+            <span class="d-block mb-1" style="font-size: 10px; font-weight: bold; color: var(--text-main);">
+                <i class="bi bi-hash me-1 text-dark"></i> Protocolo da Operadora / Fornecedor
+            </span>
+            <div class="row g-2">
+                <div class="col-12">
+                    <input type="text" class="form-control form-control-sm shadow-none" 
+                           name="provider_protocol" id="inputProviderProtocol"
+                           placeholder="Digite o protocolo externo..." 
+                           value="{{ incident.provider_protocol|default:'' }}"
+                           style="font-size: 11px;">
+                </div>
+                <div class="col-12">
+                    <div class="form-check" style="min-height: auto;">
+                        <input class="form-check-input" type="checkbox" name="no_provider_protocol" 
+                               id="checkNoProviderProtocol" {% if incident.no_provider_protocol %}checked{% endif %}
+                               style="width: 14px; height: 14px;">
+                        <label class="form-check-label text-muted" for="checkNoProviderProtocol" style="font-size: 10px; cursor: pointer;">
+                            Fornecedor não gerou protocolo
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Botão de Ação -->
         <button type="submit" class="btn w-100 fw-bold shadow-sm d-flex justify-content-center align-items-center gap-2"
             style="background-color: #008891; color: white; font-size: 12px; padding: 8px;">
@@ -328,7 +356,36 @@
             verificarStatus(); 
         }
 
+        // [NOVO] Validação de Protocolo de Operadora
+        function validarProtocoloOperadora() {
+            const selectStatus = document.getElementById('selectStatusOffcanvas');
+            const inputProtocolo = document.getElementById('inputProviderProtocol');
+            const checkSemProtocolo = document.getElementById('checkNoProviderProtocol');
+            
+            if (!selectStatus || !inputProtocolo || !checkSemProtocolo) return;
+
+            const statusTexto = selectStatus.options[selectStatus.selectedIndex].text.trim().toLowerCase();
+            
+            if (statusTexto === 'normalizado') {
+                if (!inputProtocolo.value && !checkSemProtocolo.checked) {
+                    inputProtocolo.setCustomValidity('O protocolo da operadora é obrigatório para normalizar chamados de terceiros.');
+                    inputProtocolo.classList.add('is-invalid');
+                } else {
+                    inputProtocolo.setCustomValidity('');
+                    inputProtocolo.classList.remove('is-invalid');
+                }
+            } else {
+                inputProtocolo.setCustomValidity('');
+                inputProtocolo.classList.remove('is-invalid');
+            }
+        }
+
+        document.getElementById('inputProviderProtocol')?.addEventListener('input', validarProtocoloOperadora);
+        document.getElementById('checkNoProviderProtocol')?.addEventListener('change', validarProtocoloOperadora);
+        selectStatus?.addEventListener('change', validarProtocoloOperadora);
+
         verificarAfetacao(); // Inicializa na carga
+        validarProtocoloOperadora();
 
         // [NOVO] Handler de Conflito de Horário (Timeline)
         document.body.addEventListener('conflitoHorario', function(evt) {

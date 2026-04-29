@@ -180,8 +180,8 @@
                         Gerado em: {{ now|date:"d/m/Y H:i" }}
                     </p>
                     <div style="margin-top: 10px;">
-                        <span class="badge {% if sla_met %}bg-success{% else %}bg-danger{% endif %}">
-                            SLA: {% if sla_met %}CONFORMIDADE{% else %}VIOLADO{% endif %}
+                        <span class="badge {% if not has_sla %}bg-secondary{% elif sla_met %}bg-success{% else %}bg-danger{% endif %}">
+                            SLA: {% if not has_sla %}N/A{% elif sla_met %}CONFORMIDADE{% else %}VIOLADO{% endif %}
                         </span>
                     </div>
                 </td>
@@ -189,7 +189,26 @@
         </table>
     </div>
 
-    <!-- BLOCO 1: INFORMAÇÕES GERAIS -->
+    <!-- BLOCO 1: MÉTRICAS ITIL -->
+    <div class="section-title">Métricas de Performance ITIL</div>
+    <table class="info-table">
+        <tr>
+            <th style="background-color: #0d1b2a; color: white;">MTTA (Atendimento):</th>
+            <td style="font-size: 11pt;">{{ mtta_str }}</td>
+            <th style="background-color: #0d1b2a; color: white;">MTTR (Reparo):</th>
+            <td style="font-size: 11pt;">{{ mttr_str }}</td>
+        </tr>
+        <tr>
+            <th style="background-color: #0d1b2a; color: white;">Ciclo de Resolução:</th>
+            <td style="font-size: 11pt;">{{ mttresolve_str }}</td>
+            <th style="background-color: #0d1b2a; color: white;">Eficiência de SLA:</th>
+            <td style="font-size: 11pt; color: {% if not has_sla %}#6c757d{% elif sla_efficiency > 100 %}#dc3545{% elif sla_efficiency > 80 %}#ffc107{% else %}#198754{% endif %};">
+                {% if not has_sla %}N/A{% else %}{{ sla_efficiency }}%{% endif %}
+            </td>
+        </tr>
+    </table>
+
+    <!-- BLOCO 2: INFORMAÇÕES GERAIS -->
     <div class="section-title">Resumo Executivo e Categorização</div>
     <table class="info-table">
         <tr>
@@ -243,6 +262,20 @@
             <th>Tipo de Afetação:</th>
             <td>{{ incident.impact_type.name|default:"N/D" }}</td>
         </tr>
+        {% if is_third_party %}
+        <tr>
+            <th style="background-color: #f8f9fa;">Protocolo Operadora:</th>
+            <td colspan="3">
+                {% if incident.provider_protocol %}
+                    {{ incident.provider_protocol }}
+                {% elif incident.no_provider_protocol %}
+                    <span style="color: #6c757d; font-style: italic;">FORNECEDOR NÃO GEROU PROTOCOLO</span>
+                {% else %}
+                    <span style="color: #dc3545;">NÃO INFORMADO</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endif %}
     </table>
 
     <!-- BLOCO 3: RFO E DESCRIÇÃO -->

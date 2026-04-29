@@ -13,7 +13,7 @@ from asgiref.sync import sync_to_async
 import traceback
 import re
 import json
-from apps.users.utils import format_duration_human, get_detailed_timeline_data
+from apps.users.utils import format_duration_human, get_detailed_timeline_data, is_third_party_incident
 
 # Importação de todos os modelos necessários
 from apps.incidents.models import (
@@ -139,13 +139,18 @@ async def detalhe_incidente_ajax(request, protocolo):
                     impact_td += (end_time - last_time)
 
             sla_hours = 4
+            has_sla = True
             if incident.sla and incident.sla.name:
-                digits = re.findall(r'\d+', str(incident.sla.name))
-                if digits:
-                    sla_hours = int(digits[0])
+                if incident.sla.name.lower() == 'sem sla':
+                    has_sla = False
+                    sla_hours = 0
+                else:
+                    digits = re.findall(r'\d+', str(incident.sla.name))
+                    if digits:
+                        sla_hours = int(digits[0])
 
             afetacao_color = "#7da233" 
-            if impact_td.total_seconds() > (sla_hours * 3600):
+            if has_sla and impact_td.total_seconds() > (sla_hours * 3600):
                 afetacao_color = "#dc3545"
 
             def format_duration(td):
@@ -196,6 +201,8 @@ async def detalhe_incidente_ajax(request, protocolo):
 
             return {
                 'incident': incident,
+                'is_third_party': is_third_party_incident(incident),
+
                 'status_nome': incident.status.name if incident.status else "Desconhecido",
                 'tipo_nome': tipo_nome,
                 'sintoma_nome': incident.reported_symptom.name if incident.reported_symptom else "Sintoma Desconhecido",
@@ -321,9 +328,22 @@ async def atualizar_incidente_ajax(request, protocolo):
                 stopped_at = request.POST.get('stopped_at')
                 user_updated_at_str = request.POST.get('user_updated_at')
                 
+                # [NOVO] Protocolo de Operadora
+                provider_protocol = request.POST.get('provider_protocol', '').strip()
+                no_provider_protocol = request.POST.get('no_provider_protocol') == 'on'
+                
                 new_status = Status.objects.filter(id=status_id).first()
                 new_impact_level = ImpactLevel.objects.filter(id=impact_level_id).first() if impact_level_id else None
                 new_impact_type = ImpactType.objects.filter(id=impact_type_id).first() if impact_type_id else None
+
+                # [REGRA] Validação de Protocolo de Operadora no Encerramento
+                if new_status and new_status.name.lower() == 'normalizado':
+                    if is_third_party_incident(incident):
+                        if not provider_protocol and not no_provider_protocol:
+                            response = HttpResponse(status=200)
+                            response['HX-Trigger'] = json.dumps({"erroValidacao": "Para chamados de terceiros, informe o Protocolo da Operadora ou marque que não houve geração."})
+                            response['HX-Reswap'] = 'none'
+                            return response
 
                 # --- Lógica de Sincronização e Geração de Histórico ---
                 resolved_at_str = request.POST.get('resolved_at')
@@ -455,7 +475,9 @@ async def atualizar_incidente_ajax(request, protocolo):
                 elif incident.stopped_at is not None:
                     stopped_at_mudou = True
 
-                has_changes = status_mudou or impacto_mudou or previsao_mudou or impact_level_mudou or impact_type_mudou or outros_campos_mudaram or stopped_at_mudou
+                protocolo_mudou = (incident.provider_protocol or '') != provider_protocol or incident.no_provider_protocol != no_provider_protocol
+                
+                has_changes = status_mudou or impacto_mudou or previsao_mudou or impact_level_mudou or impact_type_mudou or outros_campos_mudaram or stopped_at_mudou or protocolo_mudou
 
                 if not has_changes and not comment_text:
                     response = HttpResponse(status=200) 
@@ -498,6 +520,14 @@ async def atualizar_incidente_ajax(request, protocolo):
                     if new_status and incident.status_id != new_status.id:
                         mensagens_sistema.append(f"O status do chamado foi alterado para '{new_status.name}'")
 
+                    if protocolo_mudou:
+                        if provider_protocol:
+                            mensagens_sistema.append(f"Protocolo da operadora atualizado para: {provider_protocol}")
+                        elif no_provider_protocol:
+                            mensagens_sistema.append("Operadora informou que não houve geração de protocolo")
+                        else:
+                            mensagens_sistema.append("Informação de protocolo de operadora removida")
+
                     if mensagens_sistema:
                         comment_text = "[SISTEMA] " + ". ".join(mensagens_sistema) + "."
                     else:
@@ -525,6 +555,10 @@ async def atualizar_incidente_ajax(request, protocolo):
                     # Outras relações específicas da View
                     if new_status and new_status.name.lower() == 'escalonado' and assigned_to_id:
                         incident.assigned_to_id = assigned_to_id
+                    
+                    # [NOVO] Persistência de Protocolo de Operadora
+                    incident.provider_protocol = provider_protocol
+                    incident.no_provider_protocol = no_provider_protocol
                     
                     # Detecção de Encerramento (Campos extras de normalização)
                     is_norm = incident.status.name.lower() in ['normalizado', 'resolvido', 'encerrado']
@@ -643,6 +677,7 @@ async def atualizar_incidente_ajax(request, protocolo):
             return {
                 'incident': incident,
                 'designador_nome': designador_nome,
+                'is_third_party': is_third_party_incident(incident),
                 'lista_status': lista_status,
                 'lista_tipos_impacto': lista_tipos_impacto,
                 'lista_niveis_impacto': lista_niveis_impacto,
@@ -733,38 +768,65 @@ async def editar_incidente_ajax(request, protocolo):
                         new_expected = None
                         
                         # Detecção de Mudanças
-                        diffs = []
+                        mensagens_sistema = []
                         detected_slugs = []
                         
-                        if incident.mk_protocol != new_protocol: diffs.append("Protocolo")
-                        if incident.incident_type_id != new_type_id: diffs.append("Tipo")
-                        if old_occured != new_occured: diffs.append("Ocorrência")
+                        if incident.mk_protocol != new_protocol: 
+                            mensagens_sistema.append(f"Protocolo MK alterado para {new_protocol}")
+                        
+                        if incident.incident_type_id != new_type_id: 
+                            mensagens_sistema.append(f"Tipo de incidente alterado")
+                        
+                        if old_occured != new_occured: 
+                            mensagens_sistema.append(f"Horário de início da ocorrência ajustado")
 
-                        if request.POST.get('description', '') != (incident.description or ''): diffs.append("Descrição")
+                        if request.POST.get('description', '') != (incident.description or ''): 
+                            mensagens_sistema.append("Descrição do incidente atualizada")
                         
                         new_sla_id = clean_id(request.POST.get('sla_id'))
                         if new_sla_id != incident.sla_id: 
-                            diffs.append("SLA")
+                            mensagens_sistema.append("SLA de atendimento alterado")
                             detected_slugs.append("sla")
 
                         new_client_type_id = clean_id(request.POST.get('client_type_id'))
                         if new_client_type_id != incident.client_type_id: 
-                            diffs.append("Cliente")
+                            mensagens_sistema.append("Segmento de cliente afetado alterado")
                             detected_slugs.append("client_type")
 
-                        if clean_id(request.POST.get('detection_source_id')) != incident.detection_source_id: diffs.append("Fonte")
-                        if clean_id(request.POST.get('reported_symptom_id')) != incident.reported_symptom_id: diffs.append("Sintoma")
-                        if clean_id(request.POST.get('site_id')) != incident.site_id: diffs.append("Site")
-                        if clean_id(request.POST.get('circuit_id')) != incident.circuit_id: diffs.append("Circuito")
-                        if clean_id(request.POST.get('device_id')) != incident.device_id: diffs.append("Device")
+                        if clean_id(request.POST.get('detection_source_id')) != incident.detection_source_id: 
+                            mensagens_sistema.append("Fonte de detecção alterada")
+                        
+                        if clean_id(request.POST.get('reported_symptom_id')) != incident.reported_symptom_id: 
+                            mensagens_sistema.append("Sintoma reportado alterado")
+                            
+                        if clean_id(request.POST.get('site_id')) != incident.site_id: 
+                            mensagens_sistema.append("Designador de Site alterado")
+                            
+                        if clean_id(request.POST.get('circuit_id')) != incident.circuit_id: 
+                            mensagens_sistema.append("Designador de Circuito alterado")
+                            
+                        if clean_id(request.POST.get('device_id')) != incident.device_id: 
+                            mensagens_sistema.append("Designador de Dispositivo alterado")
                         
                         # Verificação de M2M
                         regioes_novas = set(clean_id(r) for r in request.POST.getlist('affected_regions') if clean_id(r))
                         regioes_atuais = set(r.id for r in incident.affected_regions.all())
                         if regioes_novas != regioes_atuais:
-                            diffs.append("Regiões")
+                            mensagens_sistema.append("Cidades afetadas atualizadas")
 
-                        has_changes = bool(diffs)
+                        # [NOVO] Protocolo de Operadora
+                        new_provider_protocol = request.POST.get('provider_protocol', '').strip()
+                        new_no_provider_protocol = request.POST.get('no_provider_protocol') == 'on'
+                        if (incident.provider_protocol or '') != new_provider_protocol or incident.no_provider_protocol != new_no_provider_protocol:
+                            if new_provider_protocol:
+                                mensagens_sistema.append(f"Protocolo da operadora atualizado para: {new_provider_protocol}")
+                            elif new_no_provider_protocol:
+                                mensagens_sistema.append("Informado que o fornecedor não gerou protocolo")
+                            else:
+                                mensagens_sistema.append("Informação de protocolo de operadora removida")
+
+
+                        has_changes = bool(mensagens_sistema)
 
                         if not has_changes:
                             response = HttpResponse(status=200)
@@ -788,6 +850,10 @@ async def editar_incidente_ajax(request, protocolo):
                         incident.device_id = clean_id(request.POST.get('device_id')) if tipo in ['R.A.', 'Equipamento'] else None
                         
                         if new_occured_str: incident.occured_at = parse_datetime(new_occured_str)
+                        # [NOVO] Protocolo de Operadora
+                        incident.provider_protocol = new_provider_protocol
+                        incident.no_provider_protocol = new_no_provider_protocol
+                        
                         incident.description = request.POST.get('description', '')
                         
                         incident.last_manual_update_at = timezone.now()
@@ -796,23 +862,25 @@ async def editar_incidente_ajax(request, protocolo):
                         regioes = request.POST.getlist('affected_regions')
                         incident.affected_regions.set(regioes)
 
-                        # Criar registro de Update para o histórico
-                        comment_text = f"[SISTEMA] Alteração estrutural de: {', '.join(diffs)}."
-                        update_obj = UpdateIncident.objects.create(
-                            incident=incident,
-                            created_by=user,
-                            status=incident.status,
-                            is_impact_active=incident.is_impact_active,
-                            comment=comment_text,
-                            user_updated_at=timezone.now(),
-                            impact_level=incident.impact_level,
-                            impact_type=incident.impact_type,
-                            expected_at=incident.expected_at,
-                            time_elapsed=0
-                        )
-                        if detected_slugs:
-                            tags = UpdateTag.objects.filter(slug__in=detected_slugs)
-                            update_obj.tags.set(tags)
+                        # Só cria o registro de atualização no histórico se NÃO estiver normalizado
+                        # (Alterações estruturais em chamados fechados não devem sujar a timeline)
+                        if incident.status.name.lower() != 'normalizado':
+                            comment_text = f"[SISTEMA] Alteração estrutural: {'. '.join(mensagens_sistema)}."
+                            update_obj = UpdateIncident.objects.create(
+                                incident=incident,
+                                created_by=user,
+                                status=incident.status,
+                                is_impact_active=incident.is_impact_active,
+                                comment=comment_text,
+                                user_updated_at=timezone.now(),
+                                impact_level=incident.impact_level,
+                                impact_type=incident.impact_type,
+                                expected_at=incident.expected_at,
+                                time_elapsed=0
+                            )
+                            if detected_slugs:
+                                tags = UpdateTag.objects.filter(slug__in=detected_slugs)
+                                update_obj.tags.set(tags)
                         
                         return {'new_protocol': new_protocol}
                 except Exception as e:
@@ -863,6 +931,8 @@ async def editar_incidente_ajax(request, protocolo):
 
             return {
                 'incident': incident,
+                'is_third_party': is_third_party_incident(incident),
+
                 'lista_status': list(Status.objects.all().order_by('name')),
                 'lista_tipos': list(IncidentType.objects.all().order_by('name')),
                 'lista_sintomas': list(Symptom.objects.all().order_by('name')),

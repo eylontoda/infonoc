@@ -51,7 +51,36 @@
             </div>
         </div>
 
+        <!-- [NOVO] Protocolo de Operadora (Visível apenas para terceiros) -->
+        {% if is_third_party %}
+        <div class="border rounded mb-2 bg-warning-subtle p-2 animate-fade-in" style="border-left: 4px solid #ffc107 !important;">
+            <span class="d-block mb-1" style="font-size: 10px; font-weight: bold; color: var(--text-main);">
+                <i class="bi bi-hash me-1 text-dark"></i> Protocolo da Operadora / Fornecedor
+            </span>
+            <div class="row g-2">
+                <div class="col-12">
+                    <input type="text" class="form-control form-control-sm shadow-none" 
+                           name="provider_protocol" id="inputProviderProtocolMestre"
+                           placeholder="Digite o protocolo externo..." 
+                           value="{{ incident.provider_protocol|default:'' }}"
+                           style="font-size: 11px;">
+                </div>
+                <div class="col-12">
+                    <div class="form-check" style="min-height: auto;">
+                        <input class="form-check-input" type="checkbox" name="no_provider_protocol" 
+                               id="checkNoProviderProtocolMestre" {% if incident.no_provider_protocol %}checked{% endif %}
+                               style="width: 14px; height: 14px;">
+                        <label class="form-check-label text-muted" for="checkNoProviderProtocolMestre" style="font-size: 10px; cursor: pointer;">
+                            Fornecedor não gerou protocolo
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Seção 2: Infra e Tempo -->
+
         <div class="row g-2 mb-1">
             <div class="col-6">
                 <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Início Ocorrência <span class="text-danger">*</span></label>

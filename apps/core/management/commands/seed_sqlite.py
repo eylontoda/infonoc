@@ -167,7 +167,7 @@ class Command(BaseCommand):
             user_map = {u.username: u for u in User.objects.all()}
             status_map = {s.name: s for s in Status.objects.all()}
             inc_type_map = {i.name: i for i in IncidentType.objects.all()}
-            sla_map = {s.name: s for s in SLA.objects.all()}
+            sla_map = {s.name.lower(): s for s in SLA.objects.all()}
             imp_type_map = {i.name: i for i in ImpactType.objects.all()}
             imp_lvl_map = {i.name: i for i in ImpactLevel.objects.all()}
             cli_type_map = {c.name: c for c in ClientType.objects.all()}
@@ -256,8 +256,18 @@ class Command(BaseCommand):
                 impacto_raw = str(row[10] or "").strip()
                 is_impact_active_calc = (impacto_raw.lower() != "sem impacto")
     
-                # [NOVO] Resolução baseada no conteúdo do campo "designador" (row[14])
+                # [NOVO] Resolução baseada no conteúdo do campo "designador" (row[14] ou row[9] ou descrição)
                 designador_raw = str(row[14] or "").strip()
+                if not designador_raw:
+                    alt_designador = str(row[9] or "").strip()
+                    if "#" in alt_designador or alt_designador.upper().startswith("BR-"):
+                        designador_raw = alt_designador
+                    else:
+                        # Tenta extrair da descrição inicial se estiver entre parênteses ex: (BB#BTC-SFR#SEA-01)
+                        import re
+                        match = re.search(r'\(([^)]*#[^)]*|BR-[^)]*)\)', str(row[2] or ""))
+                        if match:
+                            designador_raw = match.group(1).strip()
                 
                 circuit_obj = None
                 site_obj = None
@@ -291,12 +301,13 @@ class Command(BaseCommand):
                         'status': status_obj,
                         'reported_symptom': symptom_obj,
                         
-                        # [NOVO] Tradução e resgate seguro do incident_type
                         'incident_type': inc_type_map.get(
                             incident_type_translation.get(str(row[20]).strip(), str(row[20]).strip())
                         ) or next(iter(inc_type_map.values()), None),
                         
-                        'sla': sla_map.get(str(row[22]) + 'H') or next(iter(sla_map.values()), None),
+                        'sla': sla_map.get(
+                            (str(row[22]).strip()[:-2] if str(row[22]).strip().endswith('.0') else str(row[22]).strip()) + 'h'
+                        ) or next(iter(sla_map.values()), None),
                         'impact_type': imp_type_map.get(row[10]) or next(iter(imp_type_map.values()), None),
                         'client_type': cli_type_map.get(row[16]) or next(iter(cli_type_map.values()), None),
                         'created_by': user_map.get(row[6]) or next(iter(user_map.values()), None),
@@ -355,7 +366,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(f"💥 Erro SQLite: {e}"))
                 return
     
-            from apps.incidents.models import ImpactLevel, Status, UpdateIncident
+            from apps.incidents.models import ImpactLevel, Status, UpdateIncident, RootCause
             from django.contrib.auth import get_user_model
             User = get_user_model()
             
@@ -363,6 +374,7 @@ class Command(BaseCommand):
             user_map = {u.username: u for u in User.objects.all()}
             status_map = {s.name.lower(): s for s in Status.objects.all()}
             tag_map = {t.slug: t for t in UpdateTag.objects.all()}
+            root_cause_map = {r.name.lower(): r for r in RootCause.objects.all()}
             # [NOVO] Mapa com o estado de impacto inicial do incidente
             incident_impact_map = dict(Incident.objects.values_list('id', 'is_impact_active'))
             # [NOVO] Mapa com os status dos incidentes
@@ -426,6 +438,46 @@ class Command(BaseCommand):
                 else:
                     slugs_to_add_extra = []
     
+                # [NOVO] Extração do RFO do comentário do histórico
+                if "rfo:" in desc_lower:
+                    import re
+                    rfo_match = re.search(r'rfo:\s*(.*)', desc_str, re.IGNORECASE | re.DOTALL)
+                    if rfo_match:
+                        extracted_rfo = rfo_match.group(1).strip()
+                        if extracted_rfo:
+                            Incident.objects.filter(id=incident_id).update(rfo=extracted_rfo)
+
+                # [NOVO] Extração da CAUSA RAIZ
+                if "causa raiz:" in desc_lower or "causa\nraiz:" in desc_lower:
+                    import re
+                    rc_match = re.search(r'causa\s*raiz:\s*(.*?)(?=rfo:|$)', desc_str, re.IGNORECASE | re.DOTALL)
+                    if rc_match:
+                        extracted_rc = rc_match.group(1).strip()
+                        # Normalizar espaços e quebras de linha
+                        extracted_rc = re.sub(r'\s+', ' ', extracted_rc).strip()
+                        if extracted_rc:
+                            # Limita a 100 caracteres para não estourar o limite do banco
+                            extracted_rc = extracted_rc[:100]
+                            # Tenta pegar a CAUSA RAIZ exata
+                            rc_obj = root_cause_map.get(extracted_rc.lower())
+                            
+                            # Se não achar exato, tenta aproximação para não poluir a base
+                            if not rc_obj:
+                                import difflib
+                                chaves = list(root_cause_map.keys())
+                                matches = difflib.get_close_matches(extracted_rc.lower(), chaves, n=1, cutoff=0.4)
+                                if matches:
+                                    rc_obj = root_cause_map[matches[0]]
+                                else:
+                                    # Fallback: verifica se alguma causa oficial está contida no texto
+                                    for chave, obj in root_cause_map.items():
+                                        if chave in extracted_rc.lower() or extracted_rc.lower() in chave:
+                                            rc_obj = obj
+                                            break
+                            
+                            if rc_obj:
+                                Incident.objects.filter(id=incident_id).update(root_cause_id=rc_obj.id)
+
                 # --- Resolução do Status Objeto ---
                 status_obj = None
                 if status_novo:

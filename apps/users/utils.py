@@ -89,22 +89,78 @@ def get_detailed_timeline_data(protocolo):
             'comentario': conclusao_comment
         })
     
-    # [CORREÇÃO] total_impact_min deve considerar ate - de, mas verificar se ate não é None
+    # [ITIL] Cálculo do MTTA (Mean Time to Acknowledge)
+    # Definido como o tempo entre o ocorrido e o primeiro update manual (que não seja sistema)
+    first_manual_update = updates.exclude(comment__startswith="[SISTEMA]").first()
+    mtta_min = 0
+    if first_manual_update:
+        mtta_min = max(0, int((first_manual_update.effective_time - incident.occured_at).total_seconds() // 60))
+    else:
+        # Se não houver manual, pegamos o primeiro update qualquer
+        if first_update:
+            mtta_min = max(0, int((first_update.effective_time - incident.occured_at).total_seconds() // 60))
+
+    # [ITIL] Cálculo do MTTR (Mean Time to Repair/Restore) -> Cumulative Impact Time
     total_impact_min = sum((s['ate'] - s['de']).total_seconds() // 60 for s in segments if s['impacto'] and s['ate'])
     
+    # [ITIL] Cálculo do MTTResolve (Mean Time to Resolve) -> Total Elapsed Time
+    total_resolve_min = int((end_time - incident.occured_at).total_seconds() // 60)
+
+    # Cálculo de SLA
     sla_limit_min = 240
-    if incident.sla and incident.sla.name:
-        digits = re.findall(r'\d+', str(incident.sla.name))
-        if digits: sla_limit_min = int(digits[0]) * 60
+    has_sla = True
     
-    sla_met = total_impact_min <= sla_limit_min
+    if incident.sla and incident.sla.name:
+        if incident.sla.name.lower() == 'sem sla':
+            has_sla = False
+            sla_limit_min = 0
+        else:
+            digits = re.findall(r'\d+', str(incident.sla.name))
+            if digits: 
+                sla_limit_min = int(digits[0]) * 60
+    
+    if has_sla:
+        sla_met = total_impact_min <= sla_limit_min
+        sla_efficiency = round((total_impact_min / sla_limit_min) * 100, 1) if sla_limit_min > 0 else 0
+    else:
+        sla_met = True
+        sla_efficiency = 0
 
     return {
         'incident': incident,
         'segments': segments,
+        # Métricas ITIL
+        'mtta_str': format_duration_human(mtta_min),
+        'mttr_str': format_duration_human(int(total_impact_min)),
+        'mttresolve_str': format_duration_human(total_resolve_min),
+        'sla_efficiency': sla_efficiency,
+        'has_sla': has_sla,
+        
         'total_impact_str': format_duration_human(int(total_impact_min)),
-        'total_decorrido_str': format_duration_human(int((end_time - incident.occured_at).total_seconds() // 60)),
+        'total_decorrido_str': format_duration_human(total_resolve_min),
         'sla_met': sla_met,
-        'sla_limit_str': format_duration_human(sla_limit_min),
+        'sla_limit_str': format_duration_human(sla_limit_min) if has_sla else "N/A",
+        'is_third_party': is_third_party_incident(incident),
         'now': now
     }
+
+
+def is_third_party_incident(incident):
+    """
+    Retorna True se o incidente envolver um fornecedor que NÃO seja 'SEA TELECOM'.
+    """
+    provider_name = ""
+    tipo_nome = incident.incident_type.name if incident.incident_type else ""
+    
+    if tipo_nome in ['Backbone', 'Core'] and incident.circuit and incident.circuit.provider:
+        provider_name = incident.circuit.provider.name
+    elif tipo_nome == 'Site' and incident.site and incident.site.tenant:
+        provider_name = incident.site.tenant.name
+    elif tipo_nome in ['R.A.', 'Equipamento'] and incident.device and incident.device.vendor:
+        provider_name = incident.device.vendor.name
+        
+    if not provider_name:
+        return False
+        
+    return "SEA TELECOM" not in provider_name.upper()
+
