@@ -4,14 +4,15 @@
         <div>
             <h4 class="fw-bold text-primary mb-1">Relatório de Incidente ITSM</h4>
             <p class="text-muted mb-0 small">
-                Protocolo: <span class="fw-bold">{{ incident.mk_protocol }}</span> | 
+                Protocolo: <span class="fw-bold">{{ incident.protocol_number }}</span> 
+                {% if incident.mk_protocol %}<span class="text-muted" style="font-size: 10px;">(MK: {{ incident.mk_protocol }})</span>{% endif %} | 
                 Início: {{ incident.occured_at|date:"d/m/Y H:i" }} 
                 {% if incident.resolved_at %}| Término: {{ incident.resolved_at|date:"d/m/Y H:i" }}{% endif %}
             </p>
             <p class="text-muted mb-0 mt-1" style="font-size: 9px;">Gerado em: {{ now|date:"d/m/Y H:i" }}</p>
         </div>
         <div class="text-end">
-            <a href="{% url 'users:gerar_relatorio_pdf' incident.mk_protocol %}" target="_blank" class="btn btn-sm btn-outline-danger me-2 shadow-sm">
+            <a href="{% url 'users:gerar_relatorio_pdf' incident.protocol_number %}" target="_blank" class="btn btn-sm btn-outline-danger me-2 shadow-sm">
                 <i class="bi bi-file-earmark-pdf-fill me-1"></i> Baixar PDF
             </a>
             <span class="badge {% if not has_sla %}bg-secondary{% elif sla_met %}bg-success{% else %}bg-danger{% endif %} p-2 px-3 align-middle" style="font-size: 12px;">

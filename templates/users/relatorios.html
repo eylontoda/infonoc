@@ -144,7 +144,16 @@ $(document).ready(function() {
             dataSrc: ''
         },
         columns: [
-            { data: 'protocol' },
+            { 
+                data: 'protocol_internal',
+                render: function(data, type, row) {
+                    let html = `<strong>${data || 'S/P'}</strong>`;
+                    if (row.protocol && row.protocol !== 'S/P' && row.protocol !== '') {
+                        html += `<br><small class="text-muted">(${row.protocol})</small>`;
+                    }
+                    return html;
+                }
+            },
             { 
                 data: 'occured_at',
                 render: function(data) { return data ? new Date(data).toLocaleString('pt-BR') : 'N/D'; }

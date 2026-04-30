@@ -280,7 +280,9 @@
         padding: 2px 8px; border-radius: 10px;
         display: inline-block;
     }
-    .badge-andamento { background: rgba(220,53,69,0.12); color: #dc3545; border: 1px solid rgba(220,53,69,0.3); }
+    .badge-andamento { background: rgba(0, 136, 145, 0.12); color: #008891; border: 1px solid rgba(0, 136, 145, 0.3); }
+    .badge-abertura { background: rgba(13, 202, 240, 0.12); color: #0dcaf0; border: 1px solid rgba(13, 202, 240, 0.3); }
+    .badge-pendente-resgate { background: rgba(253, 126, 20, 0.12); color: #fd7e14; border: 1px solid rgba(253, 126, 20, 0.3); }
     .badge-normalizado { background: rgba(125,162,51,0.12); color: #7da233; border: 1px solid rgba(125,162,51,0.3); }
     .badge-pausado { background: rgba(255,193,7,0.15); color: #b38600; border: 1px solid rgba(255,193,7,0.4); }
     .badge-escalonado { background: rgba(13,110,253,0.12); color: #0d6efd; border: 1px solid rgba(13,110,253,0.3); }
@@ -434,10 +436,12 @@ document.addEventListener("DOMContentLoaded", function () {
     // ── Render ──────────────────────────────────────────────────
     function getStatusBadge(name) {
         const n = (name || '').toLowerCase();
+        if (n === 'em abertura')   return `<span class="card-badge badge-abertura">${name}</span>`;
         if (n === 'em andamento')  return `<span class="card-badge badge-andamento">${name}</span>`;
         if (n === 'normalizado')   return `<span class="card-badge badge-normalizado">${name}</span>`;
         if (n === 'pausado')       return `<span class="card-badge badge-pausado">${name}</span>`;
         if (n === 'escalonado')    return `<span class="card-badge badge-escalonado">${name}</span>`;
+        if (n === 'pendente resgate') return `<span class="card-badge badge-pendente-resgate">${name}</span>`;
         return `<span class="card-badge badge-other">${name}</span>`;
     }
 

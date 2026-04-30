@@ -3,13 +3,18 @@
     {% include 'users/partials/header_incidente.html' with header_title="Edição de Incidente" %}
 
     <form id="formEdicaoMestra" 
-          hx-post="/incidents/editar-ajax/{{ incident.mk_protocol }}/" 
+          hx-post="/incidents/editar-ajax/{{ incident.protocol_number }}/" 
           hx-target="#conteudoEditar"
           hx-swap="innerHTML">
         {% csrf_token %}
 
         <!-- Seção 1: Identificação -->
         <div class="row g-2 mb-1">
+            <div class="col-6">
+                <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Protocolo Interno</label>
+                <input type="text" class="form-control form-control-sm shadow-none bg-light" 
+                    value="{{ incident.protocol_number }}" style="font-size: 11px;" readonly disabled>
+            </div>
             <div class="col-6">
                 <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Protocolo MK <span class="text-danger">*</span></label>
                 <input type="text" name="mk_protocol" id="inputProtocolMestre" class="form-control form-control-sm shadow-none" 
@@ -18,6 +23,7 @@
                     title="Formato esperado: XXXX.Y (Máximo 10 caracteres)">
                 <div id="protocol-msg-mestre" class="mt-0"></div>
             </div>
+        </div>
             <div class="col-6">
                 <label class="form-label fw-bold text-muted text-uppercase mb-0" style="font-size: 9px;">Fonte de Detecção</label>
                 <select name="detection_source_id" class="form-select form-select-sm shadow-none" style="font-size: 11px;">

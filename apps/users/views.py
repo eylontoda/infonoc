@@ -98,7 +98,7 @@ async def detalhe_incidente_ajax(request, protocolo):
                 'device', 'assigned_to', 'impact_level', 'impact_type', 'reported_symptom', 'sla'
             ).prefetch_related(
                 'updates__created_by', 'updates__status', 'affected_regions'
-            ).filter(mk_protocol=protocolo).first()
+            ).filter(Q(protocol_number=protocolo) | Q(mk_protocol=protocolo)).first()
 
             if not incident: return None
 
@@ -642,7 +642,7 @@ async def atualizar_incidente_ajax(request, protocolo):
                 'impact_type', 'impact_level', 'client_type', 'sla'
             ).prefetch_related(
                 'updates__created_by', 'updates__tags'
-            ).filter(mk_protocol=protocolo).first()
+            ).filter(Q(protocol_number=protocolo) | Q(mk_protocol=protocolo)).first()
 
             if not incident:
                 return None
@@ -718,7 +718,7 @@ async def editar_incidente_ajax(request, protocolo):
             def save_structural_edit():
                 try:
                     with transaction.atomic():
-                        incident = Incident.objects.select_related('incident_type').filter(mk_protocol=protocolo).first()
+                        incident = Incident.objects.select_related('incident_type').filter(Q(protocol_number=protocolo) | Q(mk_protocol=protocolo)).first()
                         if not incident: return "Protocolo não encontrado."
                         
                         def clean_id(val):
@@ -924,7 +924,7 @@ async def editar_incidente_ajax(request, protocolo):
         def get_edit_context():
             incident = Incident.objects.select_related(
                 'status', 'incident_type', 'site', 'circuit', 'device', 'detection_source', 'reported_symptom'
-            ).filter(mk_protocol=protocolo).first()
+            ).filter(Q(protocol_number=protocolo) | Q(mk_protocol=protocolo)).first()
             
             if not incident: return None
             
@@ -1002,11 +1002,12 @@ async def api_dashboard_stats(request):
         def get_stats():
             now = timezone.now()
             last_24h = now - timezone.timedelta(hours=24)
+            active_statuses = ['Em abertura', 'Em andamento', 'Pendente terceiros', 'Pendente resgate', 'Escalonado', 'Em validação']
             return Incident.objects.aggregate(
-                em_andamento=Count('id', filter=Q(status__name__iexact='Em andamento')),
+                em_andamento=Count('id', filter=Q(status__name__in=active_statuses)),
                 normalizado=Count('id', filter=Q(status__name__iexact='Normalizado', resolved_at__gte=last_24h)),
-                sem_afetacao=Count('id', filter=Q(status__name__iexact='Em andamento', is_impact_active=False)),
-                com_afetacao=Count('id', filter=Q(status__name__iexact='Em andamento', is_impact_active=True))
+                sem_afetacao=Count('id', filter=Q(status__name__in=active_statuses, is_impact_active=False)),
+                com_afetacao=Count('id', filter=Q(status__name__in=active_statuses, is_impact_active=True))
             )
 
         try:
@@ -1071,7 +1072,7 @@ async def api_incidents_list(request):
         ).prefetch_related(
             updates_prefetch
         ).only(
-            'id', 'mk_protocol', 'occured_at', 'expected_at', 'resolved_at', 'description', 'status__name', 
+            'id', 'protocol_number', 'mk_protocol', 'occured_at', 'expected_at', 'resolved_at', 'description', 'status__name', 
             'incident_type__name', 'is_impact_active', 'last_history_update_at', 'last_manual_update_at',
             'site__name', 'site__facility', 'circuit__name', 'device__name',
             'assigned_to__username', 'stopped_at'
@@ -1161,7 +1162,8 @@ async def api_incidents_list(request):
 
             data_list.append({
                 'id': inc.id,
-                'protocol': inc.mk_protocol or "S/P",
+                'protocol': inc.mk_protocol or "",
+                'protocol_internal': inc.protocol_number or "",
                 'timestamp': dt_last_event_local.strftime('%d/%m/%Y %H:%M') if dt_last_event_local else "N/D",
                 'timestamp_iso': dt_last_event_local.isoformat() if dt_last_event_local else None,
                 'occured_at': dt_occured_local.strftime('%d/%m/%Y %H:%M') if dt_occured_local else "N/D",
@@ -1199,8 +1201,11 @@ async def resgatar_incidente_ajax(request, protocolo):
     @sync_to_async
     def do_rescue():
         try:
+            from django.db.models import Q
             from apps.incidents.models import Incident
-            incident = Incident.objects.get(mk_protocol=protocolo)
+            incident = Incident.objects.filter(Q(protocol_number=protocolo) | Q(mk_protocol=protocolo)).first()
+            if not incident:
+                return False
             if incident.assigned_to == user:
                 return True # Já está atribuído
             incident.assigned_to = user
@@ -1224,8 +1229,11 @@ async def liberar_incidente_ajax(request, protocolo):
     @sync_to_async
     def do_release():
         try:
+            from django.db.models import Q
             from apps.incidents.models import Incident
-            incident = Incident.objects.get(mk_protocol=protocolo)
+            incident = Incident.objects.filter(Q(protocol_number=protocolo) | Q(mk_protocol=protocolo)).first()
+            if not incident:
+                return False
             incident.assigned_to = None
             incident.save()
             return True
@@ -1247,8 +1255,11 @@ async def excluir_incidente_ajax(request, protocolo):
     @sync_to_async
     def do_delete():
         try:
+            from django.db.models import Q
             from apps.incidents.models import Incident, Status
-            incident = Incident.objects.get(mk_protocol=protocolo)
+            incident = Incident.objects.filter(Q(protocol_number=protocolo) | Q(mk_protocol=protocolo)).first()
+            if not incident:
+                return False
             status_excluido = Status.objects.filter(name__iexact='Excluido').first()
             if status_excluido:
                 incident.status = status_excluido
@@ -1632,7 +1643,7 @@ async def historico_incidente_ajax(request, protocolo):
                 'updates__created_by', 
                 'updates__status', 
                 'updates__tags'
-            ).filter(mk_protocol=protocolo).first()
+            ).filter(Q(protocol_number=protocolo) | Q(mk_protocol=protocolo)).first()
             return incident
 
         incident = await get_incident_history()

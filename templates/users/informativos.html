@@ -538,10 +538,17 @@
             },
             columns: [
                 {
-                    data: 'protocol',
+                    data: 'protocol_internal',
                     className: 'text-center align-middle',
                     defaultContent: 'S/P',
-                    width: '70px'
+                    width: '90px',
+                    render: (data, type, row) => {
+                        let html = `<div class="fw-bold">${data || 'S/P'}</div>`;
+                        if (row.protocol && row.protocol !== 'S/P' && row.protocol !== '') {
+                            html += `<div class="text-muted" style="font-size: 8px;">(MK: ${row.protocol})</div>`;
+                        }
+                        return html;
+                    }
                 },
                 {
                     data: 'occured_at',
@@ -621,10 +628,12 @@
                     width: '90px',
                     render: (data, type) => {
                         if (type === 'display') {
-                            if (data === 'Em andamento') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #008891; color: #FFFFFF;">${data}</span>`;
+                            if (data === 'Em abertura') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #0dcaf0; color: #000000;">${data}</span>`;
+                            else if (data === 'Em andamento') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #008891; color: #FFFFFF;">${data}</span>`;
                             else if (data === 'Normalizado') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #198754; color: #FFFFFF;">${data}</span>`;
                             else if (data === 'Escalonado') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #ffc107; color: #000000;">${data}</span>`;
                             else if (data === 'Pausado') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #6c757d; color: #FFFFFF;">${data}</span>`;
+                            else if (data === 'Pendente resgate') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #fd7e14; color: #FFFFFF;">${data}</span>`;
                             else if (data.toLowerCase().includes('valida')) return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #6f42c1; color: #FFFFFF;">${data}</span>`;
                             else if (data.toLowerCase().includes('terceiro')) return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #fd7e14; color: #FFFFFF;">${data}</span>`;
                             return `<span class="badge rounded-pill bg-secondary" style="font-size: 9px;">${data || 'N/D'}</span>`;
@@ -694,32 +703,32 @@
                     className: 'text-center align-middle',
                     defaultContent: '',
                     width: '160px',
-                    render: (data) => {
-                        if (!data) return '';
+                    render: (data, type, row) => {
+                        if (!row) return '';
                         return `
                         <div class="btn-group shadow-sm">
                             <button class="btn btn-sm btn-table-action btn-action-view" 
-                                    hx-get="/incidents/detalhe-ajax/${data.protocol}/" hx-target="#conteudoDetalhes" data-bs-toggle="offcanvas" data-bs-target="#offcanvasDetalhes" title="Ver Detalhes">
+                                    hx-get="/incidents/detalhe-ajax/${row.protocol_internal}/" hx-target="#conteudoDetalhes" data-bs-toggle="offcanvas" data-bs-target="#offcanvasDetalhes" title="Ver Detalhes">
                                 <i class="bi bi-eye-fill"></i>
                             </button>
                             <button class="btn btn-sm btn-table-action btn-action-add" 
-                                    hx-get="/incidents/atualizar-ajax/${data.protocol}/" hx-target="#conteudoAtualizacao" data-bs-toggle="offcanvas" data-bs-target="#offcanvasAtualizacao" title="Inserir Atualização">
+                                    hx-get="/incidents/atualizar-ajax/${row.protocol_internal}/" hx-target="#conteudoAtualizacao" data-bs-toggle="offcanvas" data-bs-target="#offcanvasAtualizacao" title="Inserir Atualização">
                                 <i class="bi bi-plus-square-fill"></i>
                             </button>
-                            ${data.assigned_to === CURRENT_USER ? `
-                                <button class="btn btn-sm btn-table-action btn-action-release" onclick="informativoManager.liberarResponsabilidade('${data.protocol}')" title="Liberar Resgate">
+                            ${row.assigned_to === CURRENT_USER ? `
+                                <button class="btn btn-sm btn-table-action btn-action-release" onclick="informativoManager.liberarResponsabilidade('${row.protocol_internal}')" title="Liberar Resgate">
                                     <i class="bi bi-person-dash-fill"></i>
                                 </button>
                             ` : `
-                                <button class="btn btn-sm btn-table-action btn-action-assign" onclick="informativoManager.assumirResponsabilidade('${data.protocol}')" title="Assumir Responsabilidade">
+                                <button class="btn btn-sm btn-table-action btn-action-assign" onclick="informativoManager.assumirResponsabilidade('${row.protocol_internal}')" title="Assumir Responsabilidade">
                                     <i class="bi bi-person-check-fill"></i>
                                 </button>
                             `}
                             <button class="btn btn-sm btn-table-action btn-action-edit" 
-                                    hx-get="/incidents/editar-ajax/${data.protocol}/" hx-target="#conteudoEditar" data-bs-toggle="offcanvas" data-bs-target="#offcanvasEditar" title="Editar Chamado">
+                                    hx-get="/incidents/editar-ajax/${row.protocol_internal}/" hx-target="#conteudoEditar" data-bs-toggle="offcanvas" data-bs-target="#offcanvasEditar" title="Editar Chamado">
                                 <i class="bi bi-pencil-fill"></i>
                             </button>
-                            <button class="btn btn-sm btn-table-action btn-action-delete" onclick="informativoManager.excluirChamado('${data.protocol}')" title="Excluir">
+                            <button class="btn btn-sm btn-table-action btn-action-delete" onclick="informativoManager.excluirChamado('${row.protocol_internal}')" title="Excluir">
                                 <i class="bi bi-trash-fill"></i>
                             </button>
                         </div>`;

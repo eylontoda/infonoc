@@ -18,11 +18,14 @@ def format_duration_human(total_m):
     return " ".join(parts)
 
 def get_detailed_timeline_data(protocolo):
+    from django.db.models import Q
     incident = Incident.objects.select_related(
         'status', 'incident_type', 'site', 'circuit', 'circuit__provider', 
         'device', 'reported_symptom', 'detection_source', 'root_cause',
         'impact_type', 'impact_level', 'client_type', 'assigned_to', 'created_by'
-    ).prefetch_related('updates__created_by', 'updates__status', 'updates__tags').filter(mk_protocol=protocolo).first()
+    ).prefetch_related('updates__created_by', 'updates__status', 'updates__tags').filter(
+        Q(protocol_number=protocolo) | Q(mk_protocol=protocolo)
+    ).first()
     
     if not incident: return None
 

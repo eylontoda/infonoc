@@ -37,7 +37,7 @@ class Command(BaseCommand):
             """Popula tabelas estáticas com 100% dos valores manuais fornecidos"""
             self.stdout.write("  -> Criando Status e Tipos...")
             
-            status = ['Em andamento', 'Pausado', 'Pendente terceiros', 'Escalonado', 'Em validação', 'Normalizado', 'Excluido']
+            status = ['Em abertura', 'Em andamento', 'Pausado', 'Pendente terceiros', 'Pendente resgate', 'Escalonado', 'Em validação', 'Normalizado', 'Excluido']
             for name in status: Status.objects.get_or_create(name=name)
     
             impact_type = ['Total', 'Parcial', 'Intermitente', 'Nenhum']

@@ -292,6 +292,7 @@ class Command(BaseCommand):
                 inc_obj, created = Incident.objects.update_or_create(
                     id=old_id,
                     defaults={
+                        'protocol_number': f"SEA-{old_id:06d}",
                         'mk_protocol': row[1] or "",
                         'impact_level': impact_level_obj,
                         'description': row[2] or "",
@@ -335,7 +336,11 @@ class Command(BaseCommand):
                     self.stdout.write(f"    ⏳ {count} processados...")
     
             conn.close()
-            self.stdout.write(self.style.SUCCESS(f"✅ {count} incidentes migrados."))
+            from django.db import connection
+            with connection.cursor() as c:
+                c.execute("SELECT setval('incident_protocol_seq', COALESCE((SELECT MAX(id) FROM incidents_incident), 1))")
+            
+            self.stdout.write(self.style.SUCCESS(f"✅ {count} incidentes migrados e sequence atualizada."))
 
     def _migrate_updates(self, sqlite_db_path):
             self.stdout.write("[SQLite] Sincronizando Histórico de Atualizações com Lógica Booleana...")
