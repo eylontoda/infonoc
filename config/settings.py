@@ -129,3 +129,13 @@ PASSWORD_HASHERS = [
 
 # [NOVO] Confiança em Proxy (Essencial para Docker/Nginx)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# --- 10. ARQUIVOS DE MÍDIA (ANEXOS) ---
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# [NOVO] Limites de Upload (25MB para suportar anexos de 20MB + folga)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 26214400 
+FILE_UPLOAD_MAX_MEMORY_SIZE = 26214400 
+# Limite de campos no formulário (evita erro em forms muito grandes)
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000

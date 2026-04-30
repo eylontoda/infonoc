@@ -3,7 +3,7 @@
     {% include 'users/partials/header_incidente.html' with header_title="Edição de Incidente" %}
 
     <form id="formEdicaoMestra" 
-          hx-post="/incidents/editar-ajax/{{ incident.protocol_number }}/" 
+          hx-post="/incidents/editar-ajax/{{ incident.protocol_number }}/{% if is_dashboard %}?source=dashboard{% endif %}" 
           hx-target="#conteudoEditar"
           hx-swap="innerHTML">
         {% csrf_token %}

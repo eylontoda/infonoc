@@ -4,8 +4,8 @@
     {% include 'users/partials/header_incidente.html' with header_title="Atualização de Incidente" %}
 
     <!-- Formulário Principal de Atualização (Controlado via HTMX) -->
-    <form id="formAtualizacaoInformativo" class="mb-1" hx-post="/incidents/atualizar-ajax/{{ incident.mk_protocol }}/"
-        hx-target="#conteudoAtualizacao" hx-swap="innerHTML">
+    <form id="formAtualizacaoInformativo" class="mb-1" hx-post="/incidents/atualizar-ajax/{{ incident.mk_protocol }}/{% if is_dashboard %}?source=dashboard{% endif %}"
+        hx-target="#conteudoAtualizacao" hx-swap="innerHTML" hx-encoding="multipart/form-data">
         {% csrf_token %}
         <div id="mensagemErroAtualizacao"></div>
 
@@ -94,6 +94,22 @@
                 Técnica</label>
             <textarea class="form-control form-control-sm shadow-none font-monospace" name="technical_note" rows="3"
                 placeholder="Descreva as ações realizadas..." style="font-size: 11px; resize: none;"></textarea>
+        </div>
+
+        <!-- [NOVO] Campo de Anexo Estilizado -->
+        <div class="mb-2">
+            <label class="form-label fw-bold text-muted text-uppercase mb-1" style="font-size: 9px;">Anexo (Max 20MB)</label>
+            <div class="border rounded p-2 bg-body-tertiary d-flex align-items-center justify-content-between transition-all" 
+                 style="cursor: pointer; border-style: dashed !important; border-width: 2px !important;"
+                 onclick="document.getElementById('inputAttachment').click()">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-paperclip fs-6 me-2 text-primary"></i>
+                    <span id="fileNameLabel" class="text-muted" style="font-size: 11px;">Adicionar anexos...</span>
+                </div>
+                <small class="text-muted" style="font-size: 8px;">20MB Máx</small>
+                <input type="file" name="attachment" id="inputAttachment" class="d-none" multiple
+                       onchange="const label = document.getElementById('fileNameLabel'); if(this.files.length > 1) { label.innerText = this.files.length + ' arquivos selecionados'; label.classList.remove('text-muted'); label.classList.add('text-dark', 'fw-bold'); } else if(this.files.length === 1) { const file = this.files[0]; if(file.size > 20*1024*1024) { Swal.fire('Erro!', 'O arquivo não pode exceder 20MB.', 'error'); this.value = ''; label.innerText = 'Adicionar anexos...'; label.classList.add('text-muted'); label.classList.remove('text-dark', 'fw-bold'); return; } label.innerText = file.name; label.classList.remove('text-muted'); label.classList.add('text-dark', 'fw-bold'); } else { label.innerText = 'Adicionar anexos...'; label.classList.add('text-muted'); label.classList.remove('text-dark', 'fw-bold'); }">
+            </div>
         </div>
 
         <!-- [NOVO] Seção de Pausa (Visível se 'Pausado' selecionado) -->

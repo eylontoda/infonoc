@@ -17,7 +17,7 @@ from apps.users.utils import format_duration_human, get_detailed_timeline_data, 
 
 # Importação de todos os modelos necessários
 from apps.incidents.models import (
-    Incident, Status, UpdateIncident, UpdateTag, 
+    Incident, Status, UpdateIncident, UpdateTag, UpdateAttachment,
     ImpactType, ImpactLevel, ClientType, SLA, IncidentType,
     RootCause, Symptom, DetectionSource
 )
@@ -186,7 +186,7 @@ async def detalhe_incidente_ajax(request, protocolo):
             # [NOVO] Histórico Otimizado com Tags M2M
             historico_updates = incident.updates.annotate(
                 display_time=Coalesce(F('user_updated_at'), F('created_at'))
-            ).select_related('created_by').prefetch_related('tags').order_by('-display_time')
+            ).select_related('created_by').prefetch_related('tags', 'attachments').order_by('-display_time')
 
             locais_list = [r.name for r in incident.affected_regions.all()]
             locais_afetados = ", ".join(locais_list) if locais_list else "Nenhum local mapeado"
@@ -328,9 +328,18 @@ async def atualizar_incidente_ajax(request, protocolo):
                 stopped_at = request.POST.get('stopped_at')
                 user_updated_at_str = request.POST.get('user_updated_at')
                 
-                # [NOVO] Protocolo de Operadora
+                # [NOVO] Protocolo de Operadora e Anexos
                 provider_protocol = request.POST.get('provider_protocol', '').strip()
                 no_provider_protocol = request.POST.get('no_provider_protocol') == 'on'
+                attachments_list = request.FILES.getlist('attachment')
+
+                # Validação de Tamanho de Anexos (20MB individual)
+                for att in attachments_list:
+                    if att.size > 20 * 1024 * 1024:
+                        response = HttpResponse(status=200)
+                        response['HX-Trigger'] = json.dumps({"erroValidacao": f"O arquivo '{att.name}' é muito grande (Máx 20MB)."})
+                        response['HX-Reswap'] = 'none'
+                        return response
                 
                 new_status = Status.objects.filter(id=status_id).first()
                 new_impact_level = ImpactLevel.objects.filter(id=impact_level_id).first() if impact_level_id else None
@@ -408,7 +417,7 @@ async def atualizar_incidente_ajax(request, protocolo):
                     # 1. Com afetação: Obrigatório e Futuro
                     if not new_expected_at:
                         response = HttpResponse(status=200)
-                        response['HX-Trigger'] = json.dumps({"erroValidacao": "Para chamados 'Com afetação', a previsão é obrigatória."})
+                        response['HX-Trigger'] = json.dumps({"erroValidacao": "Informe uma previsão de normalização."})
                         response['HX-Reswap'] = 'none'
                         return response
                     if new_expected_at <= now:
@@ -476,13 +485,14 @@ async def atualizar_incidente_ajax(request, protocolo):
                     stopped_at_mudou = True
 
                 protocolo_mudou = (incident.provider_protocol or '') != provider_protocol or incident.no_provider_protocol != no_provider_protocol
+                anexo_mudou = len(attachments_list) > 0
                 
-                has_changes = status_mudou or impacto_mudou or previsao_mudou or impact_level_mudou or impact_type_mudou or outros_campos_mudaram or stopped_at_mudou or protocolo_mudou
+                has_changes = status_mudou or impacto_mudou or previsao_mudou or impact_level_mudou or impact_type_mudou or outros_campos_mudaram or stopped_at_mudou or protocolo_mudou or anexo_mudou
 
                 if not has_changes and not comment_text:
                     response = HttpResponse(status=200) 
-                    response['HX-Trigger'] = json.dumps({"erroValidacao": "Nenhuma alteração detectada."})
-                    response['HX-Reswap'] = 'none' # Impede que o HTMX limpe o formulário
+                    response['HX-Trigger'] = json.dumps({"erroValidacao": "Nenhuma mudança ou nota técnica informada para salvar."})
+                    response['HX-Reswap'] = 'none'
                     return response
 
                 # 2. Comentário Automático de Sistema (se o operador não preencher nada)
@@ -527,6 +537,12 @@ async def atualizar_incidente_ajax(request, protocolo):
                             mensagens_sistema.append("Operadora informou que não houve geração de protocolo")
                         else:
                             mensagens_sistema.append("Informação de protocolo de operadora removida")
+
+                    if anexo_mudou:
+                        if len(attachments_list) > 1:
+                            mensagens_sistema.append(f"{len(attachments_list)} novos anexos foram enviados")
+                        else:
+                            mensagens_sistema.append(f"Um novo anexo foi enviado ('{attachments_list[0].name}')")
 
                     if mensagens_sistema:
                         comment_text = "[SISTEMA] " + ". ".join(mensagens_sistema) + "."
@@ -596,6 +612,15 @@ async def atualizar_incidente_ajax(request, protocolo):
                             time_elapsed=time_elapsed
                         )
 
+                        # Salva os múltiplos anexos
+                        if attachments_list:
+                            for att in attachments_list:
+                                att_obj = UpdateAttachment.objects.create(
+                                    update=update_obj,
+                                    file=att
+                                )
+                                update_obj.attachments.add(att_obj)
+
                         # Atribui as tags de mudança
                         if detected_slugs:
                             tags = UpdateTag.objects.filter(slug__in=detected_slugs)
@@ -612,6 +637,8 @@ async def atualizar_incidente_ajax(request, protocolo):
             if isinstance(result, HttpResponse):
                 return result
             
+            source_param = "?source=dashboard" if request.GET.get('source') == 'dashboard' else ""
+            
             # [HTMX] Exibe sucesso por 1s e depois carrega os detalhes automaticamente
             response = HttpResponse(f"""
                 <div class="text-center py-5 animate-fade-in">
@@ -620,7 +647,7 @@ async def atualizar_incidente_ajax(request, protocolo):
                     <p class="text-muted" style="font-size: 11px;">Redirecionando para detalhes em 1 segundo...</p>
                     
                     <!-- Gatilho HTMX para carregar os detalhes após 1s -->
-                    <div hx-get="/incidents/detalhe-ajax/{protocolo}/" 
+                    <div hx-get="/incidents/detalhe-ajax/{protocolo}/{source_param}" 
                          hx-trigger="load delay:1s" 
                          hx-target="#conteudoAtualizacao">
                     </div>
@@ -672,7 +699,7 @@ async def atualizar_incidente_ajax(request, protocolo):
             # Histórico ordenado com Tags M2M
             historico_updates = incident.updates.annotate(
                 display_time=Coalesce(F('user_updated_at'), F('created_at'))
-            ).select_related('created_by').prefetch_related('tags').order_by('-display_time')
+            ).select_related('created_by').prefetch_related('tags', 'attachments').order_by('-display_time')
 
             return {
                 'incident': incident,
@@ -686,6 +713,7 @@ async def atualizar_incidente_ajax(request, protocolo):
                 'lista_causas_raiz': lista_causas_raiz,
                 'lista_usuarios': lista_usuarios,
                 'historico_updates': historico_updates,
+                'is_dashboard': request.GET.get('source') == 'dashboard',
                 'now': timezone.now()
             }
 
@@ -895,6 +923,7 @@ async def editar_incidente_ajax(request, protocolo):
             
             if isinstance(result, dict) and 'new_protocol' in result:
                 new_proto = result['new_protocol']
+                source_param = "?source=dashboard" if request.GET.get('source') == 'dashboard' else ""
                 # [HTMX] Exibe sucesso por 1s e depois carrega os detalhes automaticamente
                 response = HttpResponse(f"""
                     <div class="text-center py-5 animate-fade-in">
@@ -903,7 +932,7 @@ async def editar_incidente_ajax(request, protocolo):
                         <p class="text-muted" style="font-size: 11px;">Redirecionando para detalhes em 1 segundo...</p>
                         
                         <!-- Gatilho HTMX para carregar os detalhes após 1s -->
-                        <div hx-get="/incidents/detalhe-ajax/{new_proto}/" 
+                        <div hx-get="/incidents/detalhe-ajax/{new_proto}/{source_param}" 
                              hx-trigger="load delay:1s" 
                              hx-target="#conteudoEditar">
                         </div>
@@ -971,6 +1000,7 @@ async def editar_incidente_ajax(request, protocolo):
                     netbox_status__slug='active', 
                     role__slug='olt'
                 ).order_by('name')],
+                'is_dashboard': request.GET.get('source') == 'dashboard',
             }
 
         context = await get_edit_context()
@@ -1397,7 +1427,7 @@ async def novo_incidente_ajax(request):
                                 link_html = f'<div class="alert alert-warning py-1 px-2 mb-0" style="font-size: 10px; border-left: 3px solid #ffc107;">' \
                                             f'<i class="bi bi-exclamation-triangle-fill me-1"></i> Protocolo já existe. ' \
                                             f'<a href="javascript:void(0)" class="fw-bold text-decoration-underline" style="color: #856404;" ' \
-                                            f'hx-get="/incidents/detalhe-ajax/{mk_protocol}/" hx-target="#conteudoDetalhes" ' \
+                                            f'hx-get="/incidents/detalhe-ajax/{mk_protocol}/?source=dashboard" hx-target="#conteudoDetalhes" ' \
                                             f'data-bs-toggle="offcanvas" data-bs-target="#offcanvasDetalhes">Ver Incidente {mk_protocol}</a>' \
                                             f'</div>'
                                 response['HX-Trigger'] = json.dumps({"protocoloDuplicado": link_html})

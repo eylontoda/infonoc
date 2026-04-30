@@ -153,8 +153,24 @@ class Incident(BaseModel):
     def __str__(self):
         return f"{self.mk_protocol} - {self.status}"
 
-# --- ATUALIZAÇÕES ---
+def update_attachment_path(instance, filename):
+    """Gera o caminho do arquivo: attachments/SEA-XXXXXX/filename"""
+    # Como instance agora é UpdateAttachment, precisamos acessar o incidente via update
+    return f"attachments/{instance.update.incident.protocol_number}/{filename}"
 
+class UpdateAttachment(BaseModel):
+    update = models.ForeignKey('UpdateIncident', on_delete=models.CASCADE, related_name='attachments_rel')
+    file = models.FileField(upload_to=update_attachment_path, verbose_name="Arquivo")
+    filename = models.CharField(max_length=255, editable=False)
+
+    def save(self, *args, **kwargs):
+        if not self.filename:
+            self.filename = self.file.name
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = "Anexo de Atualização"
+        verbose_name_plural = "Anexos de Atualização"
 
 class UpdateIncident(BaseModel):
     incident = models.ForeignKey('Incident', on_delete=models.CASCADE, related_name='updates')
@@ -166,6 +182,11 @@ class UpdateIncident(BaseModel):
     is_impact_active = models.BooleanField(verbose_name="Impacto Ativo?")
     comment = models.TextField(verbose_name="Nota Técnica", null=True, blank=True)
     
+    # [REFORMULADO] Suporte a múltiplos anexos (N:N via classe intermediária implícita ou explícita)
+    # Usaremos a relação reversa do UpdateAttachment para simplificar o formulário
+    # ou podemos adicionar o campo ManyToMany aqui para facilitar a consulta.
+    attachments = models.ManyToManyField('UpdateAttachment', blank=True, related_name='updates')
+
     # [NOVOS] Campos para registrar o novo estado
     impact_type = models.ForeignKey('ImpactType', on_delete=models.PROTECT, null=True, blank=True)
     impact_level = models.ForeignKey('ImpactLevel', on_delete=models.PROTECT, null=True, blank=True)

@@ -47,6 +47,16 @@
         <div class="p-2 border rounded shadow-sm bg-white font-monospace position-relative" style="color: #444; font-size: 10.5px; line-height: 1.3;">
             {{ update.comment }}
             
+            {% if update.attachments.all %}
+                <div class="mt-2 pt-2 border-top d-flex flex-wrap gap-2">
+                    {% for att in update.attachments.all %}
+                    <a href="{{ att.file.url }}" download="{{ att.filename }}" class="btn btn-xs btn-outline-primary py-0 px-2 fw-bold d-flex align-items-center gap-1" style="font-size: 9px;">
+                        <i class="bi bi-paperclip"></i> {{ att.filename }}
+                    </a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
             {% if perms.incidents.can_delete_update %}
             <button type="button" class="btn btn-sm btn-outline-danger position-absolute top-0 end-0 m-1 py-0 px-1 delete-btn opacity-0 transition-all" title="Excluir" style="font-size: 9px;">
                 <i class="bi bi-trash"></i>
