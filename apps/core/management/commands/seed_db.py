@@ -22,6 +22,9 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(self.style.WARNING(f"⚠️  Arquivo SQLite não encontrado em: {sqlite_path}. Pulando migração do SQLite."))
 
+            self.stdout.write("🔐 [4/5] Configurando Permissões e Acessos (RBAC)...")
+            call_command('seed_rbac')
+
             self.stdout.write(self.style.SUCCESS("✨ Processo global de seed e migração concluído com sucesso!"))
 
         except Exception as e:

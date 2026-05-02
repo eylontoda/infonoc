@@ -20,7 +20,7 @@
                     {% if incident.provider_protocol %}
                         <span class="badge bg-dark text-white p-1 px-2" style="font-size: 9px;">{{ incident.provider_protocol }}</span>
                     {% elif incident.no_provider_protocol %}
-                        <span class="badge bg-secondary p-1 px-2 text-uppercase" style="font-size: 8px;">Fornecedor não gerou protocolo</span>
+                        <span class="badge bg-secondary p-1 px-2 text-uppercase" style="font-size: 8px;">Sem protocolo</span>
                     {% else %}
                         <span class="text-danger small italic">Não informado</span>
                     {% endif %}
@@ -45,38 +45,44 @@
                 <h6 class="fw-bold mb-2 border-bottom pb-1 text-primary" style="font-size: 10px;"><i
                         class="bi bi-clock me-1"></i> Cronologia e SLA</h6>
 
-                <p class="mb-1"><strong>Inicio da falha:</strong> {{ incident.occured_at|date:"d/m/Y H:i" }}</p>
+                {% if status_nome == 'Normalizado' %}
+                    <p class="mb-1"><strong>Inicio da falha:</strong> {{ incident.occured_at|date:"d/m/Y H:i" }}</p>
+                    {% if has_impact_history %}
+                        <p class="mb-1"><strong>Inicio da afetação:</strong> {{ incident.occured_at|date:"d/m/Y H:i" }}</p>
+                        <p class="mb-1"><strong>Fim da afetação:</strong> <span class="fw-bold text-success">{{ fim_afetacao|date:"d/m/Y H:i"|default:"N/D" }}</span></p>
+                    {% endif %}
+                    <p class="mb-1"><strong>Fim da falha:</strong> <span class="fw-bold text-success">{{ incident.resolved_at|date:"d/m/Y H:i" }}</span></p>
+                    <p class="mb-1"><strong>SLA Inicial:</strong> {{ sla_nome }}</p>
+                    <p class="mb-1"><strong>Tempo Total:</strong> {{ tempo_total_str }}</p>
+                    {% if has_impact_history %}
+                        <p class="mb-0"><strong>Tempo de Afetação:</strong> <span class="fw-bold" style="color: {{ afetacao_color|default:'#7da233' }};">{{ tempo_afetacao_str }}</span></p>
+                    {% endif %}
+                {% else %}
+                    <p class="mb-1"><strong>Inicio da falha:</strong> {{ incident.occured_at|date:"d/m/Y H:i" }}</p>
 
-                {% if incident.is_impact_active %}
-                    <p class="mb-1"><strong>Previsão:</strong>
-                        <span class="fw-bold" style="color: {{ previsao_color|default:'#60c4b0' }};">
-                            {{ incident.expected_at|date:"d/m/Y H:i"|default:"N/D" }}
-                        </span>
-                    </p>
-                {% elif fim_afetacao %}
-                    <p class="mb-1"><strong>Fim da afetação:</strong>
-                        <span class="fw-bold text-success">
-                            {{ fim_afetacao|date:"d/m/Y H:i" }}
+                    {% if incident.is_impact_active %}
+                        <p class="mb-1"><strong>Previsão:</strong>
+                            <span class="fw-bold" style="color: {{ previsao_color|default:'#60c4b0' }};">
+                                {{ incident.expected_at|date:"d/m/Y H:i"|default:"N/D" }}
+                            </span>
+                        </p>
+                    {% elif fim_afetacao %}
+                        <p class="mb-1"><strong>Fim da afetação:</strong>
+                            <span class="fw-bold text-success">
+                                {{ fim_afetacao|date:"d/m/Y H:i" }}
+                            </span>
+                        </p>
+                    {% endif %}
+
+                    <p class="mb-1"><strong>SLA Inicial:</strong> {{ sla_nome }}</p>
+                    <p class="mb-1"><strong>Tempo Total:</strong> {{ tempo_total_str }}</p>
+
+                    <p class="mb-0"><strong>Tempo de Afetação:</strong>
+                        <span class="fw-bold" style="color: {{ afetacao_color|default:'#7da233' }};">
+                            {{ tempo_afetacao_str }}
                         </span>
                     </p>
                 {% endif %}
-
-                {% if incident.status.name == 'Normalizado' and incident.resolved_at %}
-                    <p class="mb-1"><strong>Normalização da falha:</strong>
-                        <span class="fw-bold text-success">
-                            {{ incident.resolved_at|date:"d/m/Y H:i" }}
-                        </span>
-                    </p>
-                {% endif %}
-
-                <p class="mb-1"><strong>SLA Inicial:</strong> {{ sla_nome }}</p>
-                <p class="mb-1"><strong>Tempo Total:</strong> {{ tempo_total_str }}</p>
-
-                <p class="mb-0"><strong>Tempo de Afetação:</strong>
-                    <span class="fw-bold" style="color: {{ afetacao_color|default:'#7da233' }};">
-                        {{ tempo_afetacao_str }}
-                    </span>
-                </p>
             </div>
         </div>
     </div>

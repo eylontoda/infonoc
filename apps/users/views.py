@@ -1,7 +1,8 @@
 from django.shortcuts import render
 from django.views.generic import TemplateView, DetailView, UpdateView
 from django.contrib.auth.views import LoginView
-from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.models import Group
 from django.db.models import Count, Q, F
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -221,7 +222,8 @@ async def detalhe_incidente_ajax(request, protocolo):
                 'afetacao_color': afetacao_color,
                 'historico_updates': historico_updates,
                 'is_dashboard': request.GET.get('source') == 'dashboard',
-                'fim_afetacao': fim_afetacao
+                'fim_afetacao': fim_afetacao,
+                'has_impact_history': impact_td.total_seconds() > 0
             }
 
         context_data = await process_incident_data()
@@ -534,7 +536,7 @@ async def atualizar_incidente_ajax(request, protocolo):
                         if provider_protocol:
                             mensagens_sistema.append(f"Protocolo da operadora atualizado para: {provider_protocol}")
                         elif no_provider_protocol:
-                            mensagens_sistema.append("Operadora informou que não houve geração de protocolo")
+                            mensagens_sistema.append("Marcado como: Sem protocolo")
                         else:
                             mensagens_sistema.append("Informação de protocolo de operadora removida")
 
@@ -849,7 +851,7 @@ async def editar_incidente_ajax(request, protocolo):
                             if new_provider_protocol:
                                 mensagens_sistema.append(f"Protocolo da operadora atualizado para: {new_provider_protocol}")
                             elif new_no_provider_protocol:
-                                mensagens_sistema.append("Informado que o fornecedor não gerou protocolo")
+                                mensagens_sistema.append("Marcado como: Sem protocolo")
                             else:
                                 mensagens_sistema.append("Informação de protocolo de operadora removida")
 
@@ -1066,6 +1068,7 @@ async def api_incidents_list(request):
     @sync_to_async
     def get_data():
         hoje = timezone.now()
+        status_filter = request.GET.get('status_filter')
 
         # 1. Retomada Automática (Processa antes de montar a lista)
         resumable = Incident.objects.filter(status__name='Pausado', stopped_at__lte=hoje)
@@ -1095,9 +1098,16 @@ async def api_incidents_list(request):
             to_attr='latest_updates'
         )
 
-        incidents = Incident.objects.exclude(
+        queryset = Incident.objects.exclude(
             status__name__iexact='Excluido'
-        ).select_related(
+        )
+
+        if status_filter == 'abertura':
+            queryset = queryset.filter(status__name='Em abertura')
+        elif status_filter == 'regular':
+            queryset = queryset.exclude(status__name='Em abertura')
+
+        incidents = queryset.select_related(
             'status', 'incident_type', 'circuit', 'site', 'device', 'assigned_to'
         ).prefetch_related(
             updates_prefetch
@@ -1201,6 +1211,7 @@ async def api_incidents_list(request):
                 'expected_at': dt_expected_local.strftime('%d/%m/%Y %H:%M') if dt_expected_local else None,
                 'last_update_text': last_update_text,
                 'designator': designator,
+                'type': tipo_nome,
                 'description': inc.description[:100] + "..." if inc.description and len(inc.description) > 100 else (inc.description or ""),
                 'status_name': inc.status.name if inc.status else "Desconhecido",
                 'is_impact_active': inc.is_impact_active,
@@ -1232,12 +1243,31 @@ async def resgatar_incidente_ajax(request, protocolo):
     def do_rescue():
         try:
             from django.db.models import Q
-            from apps.incidents.models import Incident
+            from apps.incidents.models import Incident, Status
             incident = Incident.objects.filter(Q(protocol_number=protocolo) | Q(mk_protocol=protocolo)).first()
             if not incident:
                 return False
             if incident.assigned_to == user:
                 return True # Já está atribuído
+            
+            # --- LÓGICA DE TRANSIÇÃO DE STATUS ---
+            # Busca no histórico o último status que NÃO seja 'Pendente resgate'
+            # history.exclude(status__name='Pendente resgate') pega o estado anterior ao release
+            last_status_record = incident.history.exclude(status__name='Pendente resgate').order_by('-history_date').first()
+            
+            status_em_andamento = Status.objects.filter(name='Em andamento').first()
+            
+            if last_status_record and last_status_record.status:
+                prev_status = last_status_record.status
+                # Exceção: Se era 'Em abertura', vai para 'Em andamento'
+                if prev_status.name == 'Em abertura':
+                    incident.status = status_em_andamento
+                else:
+                    incident.status = prev_status
+            else:
+                # Fallback de segurança
+                incident.status = status_em_andamento
+
             incident.assigned_to = user
             incident.save()
             return True
@@ -1260,10 +1290,16 @@ async def liberar_incidente_ajax(request, protocolo):
     def do_release():
         try:
             from django.db.models import Q
-            from apps.incidents.models import Incident
+            from apps.incidents.models import Incident, Status
             incident = Incident.objects.filter(Q(protocol_number=protocolo) | Q(mk_protocol=protocolo)).first()
             if not incident:
                 return False
+            
+            # --- LÓGICA DE TRANSIÇÃO DE STATUS ---
+            status_pendente = Status.objects.filter(name='Pendente resgate').first()
+            if status_pendente:
+                incident.status = status_pendente
+
             incident.assigned_to = None
             incident.save()
             return True
@@ -1383,6 +1419,10 @@ async def novo_incidente_ajax(request):
             }
 
         if request.method == 'POST':
+            # Verificação de Permissão RBAC para disparar Protocolo SEA
+            if not request.user.is_superuser and not request.user.groups.filter(ui_permissions__slug='trigger_sea_protocol').exists():
+                 return HttpResponse("<div class='alert alert-danger p-2 small'>Você não tem permissão para disparar a geração de novos protocolos SEA.</div>", status=403)
+            
             @sync_to_async
             def save_new_incident():
                 try:
@@ -1684,3 +1724,210 @@ async def historico_incidente_ajax(request, protocolo):
 
     except Exception as e:
         return HttpResponse(f"Erro: {str(e)}", status=500)
+
+# ==============================================================================
+# [RBAC] GERENCIAMENTO DE ACESSOS E PERMISSÕES
+# ==============================================================================
+
+class AcessosView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
+    template_name = 'users/acessos.html'
+    
+    def test_func(self):
+        # Permite apenas superusuários ou quem tem a permissão específica
+        return self.request.user.is_superuser or self.request.user.groups.filter(ui_permissions__slug='view_access_manager').exists()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from apps.users.models import UIPermission
+        context['grupos'] = Group.objects.all().order_by('name')
+        context['permissoes'] = UIPermission.objects.all().order_by('module', 'name')
+        context['usuarios'] = User.objects.all().prefetch_related('groups').order_by('username')
+        
+        # [SEA PROTOCOL] Informações de Sequência do PostgreSQL
+        if self.request.user.is_superuser or self.request.user.groups.filter(ui_permissions__slug='view_sequence_logs').exists():
+            from django.db import connection
+            with connection.cursor() as cursor:
+                try:
+                    cursor.execute("SELECT last_value, is_called FROM incident_protocol_seq")
+                    row = cursor.fetchone()
+                    context['seq_info'] = {'last_value': row[0], 'is_called': row[1]}
+                except:
+                    context['seq_info'] = {'error': 'Sequência não encontrada ou erro no banco.'}
+        
+        return context
+
+async def api_toggle_permission(request):
+    """
+    Toggle de permissão de UI para um grupo via AJAX.
+    """
+    user = request.user
+    if not user.is_superuser and not user.groups.filter(ui_permissions__slug='manage_permissions').exists():
+        return JsonResponse({'success': False, 'error': 'Não autorizado'}, status=403)
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método inválido'}, status=405)
+
+    group_id = request.POST.get('group_id')
+    perm_id = request.POST.get('perm_id')
+    
+    @sync_to_async
+    def do_toggle():
+        try:
+            from apps.users.models import UIPermission
+            group = Group.objects.get(id=group_id)
+            perm = UIPermission.objects.get(id=perm_id)
+            
+            if perm in group.ui_permissions.all():
+                group.ui_permissions.remove(perm)
+                action = 'removed'
+            else:
+                group.ui_permissions.add(perm)
+                action = 'added'
+            return {'success': True, 'action': action}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    # Como estamos em uma view async, precisamos lidar com a transação se necessário
+    # Mas aqui é um toggle simples.
+    result = await do_toggle()
+    return JsonResponse(result)
+
+async def api_update_user_groups(request):
+    """
+    Atualiza os grupos de um usuário via AJAX.
+    """
+    if not request.user.is_superuser and not request.user.groups.filter(ui_permissions__slug='manage_permissions').exists():
+        return JsonResponse({'success': False, 'error': 'Não autorizado'}, status=403)
+
+    user_id = request.POST.get('user_id')
+    group_ids = request.POST.getlist('group_ids[]') # Array do jQuery/Fetch
+    
+    @sync_to_async
+    def do_update():
+        try:
+            with transaction.atomic():
+                target_user = User.objects.get(id=user_id)
+                target_user.groups.set(Group.objects.filter(id__in=group_ids))
+                return {'success': True}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+            
+    result = await do_update()
+    return JsonResponse(result)
+
+async def api_promote_superuser(request):
+    """
+    Promove ou remove is_superuser com verificação de senha.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Apenas superusuários podem promover outros.'}, status=403)
+
+    user_id = request.POST.get('user_id')
+    password = request.POST.get('password')
+    action = request.POST.get('action') # 'promote' ou 'demote'
+
+    if not request.user.check_password(password):
+        return JsonResponse({'success': False, 'error': 'Senha incorreta.'}, status=401)
+
+    @sync_to_async
+    def do_action():
+        try:
+            target_user = User.objects.get(id=user_id)
+            if action == 'promote':
+                target_user.is_superuser = True
+            else:
+                target_user.is_superuser = False
+            target_user.save() # O validador no model User impedirá a remoção do último superuser
+            return {'success': True}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    result = await do_action()
+    return JsonResponse(result)
+
+async def api_manage_group(request):
+    """
+    Cria, edita ou exclui um grupo e associa permissões via AJAX.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Acesso negado.'}, status=403)
+
+    group_id = request.POST.get('group_id')
+    name = request.POST.get('name')
+    action = request.POST.get('action') # 'delete' ou None (save)
+    perm_ids = request.POST.getlist('perm_ids[]')
+
+    @sync_to_async
+    def do_manage():
+        from django.contrib.auth.models import Group
+        from apps.users.models import UIPermission
+        try:
+            if action == 'delete':
+                if not group_id: return {'success': False, 'error': 'ID não informado.'}
+                group = Group.objects.get(id=group_id)
+                # Proteção básica
+                if group.name in ["N1", "N2", "Gestão"]:
+                    return {'success': False, 'error': 'Não é permitido excluir grupos do sistema.'}
+                group.delete()
+                return {'success': True}
+            
+            # Save (Create/Update)
+            if group_id:
+                group = Group.objects.get(id=group_id)
+                group.name = name
+                group.save()
+            else:
+                group = Group.objects.create(name=name)
+            
+            # Atualiza permissões
+            perms = UIPermission.objects.filter(id__in=perm_ids)
+            group.ui_permissions.set(perms)
+            
+            return {'success': True}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    result = await do_manage()
+    return JsonResponse(result)
+
+async def api_manage_resource(request):
+    """
+    Cria, edita ou exclui um UIPermission via AJAX.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'error': 'Acesso negado.'}, status=403)
+
+    res_id = request.POST.get('res_id')
+    name = request.POST.get('name')
+    slug = request.POST.get('slug')
+    module = request.POST.get('module')
+    description = request.POST.get('description', '')
+    action = request.POST.get('action') # 'delete' ou None (save)
+
+    @sync_to_async
+    def do_manage():
+        from apps.users.models import UIPermission
+        try:
+            if action == 'delete':
+                if not res_id: return {'success': False, 'error': 'ID não informado.'}
+                UIPermission.objects.get(id=res_id).delete()
+                return {'success': True}
+            
+            # Save (Create/Update)
+            if res_id:
+                res = UIPermission.objects.get(id=res_id)
+                res.name = name
+                res.slug = slug
+                res.module = module
+                res.description = description
+                res.save()
+            else:
+                UIPermission.objects.create(
+                    name=name, slug=slug, module=module, description=description
+                )
+            return {'success': True}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    result = await do_manage()
+    return JsonResponse(result)

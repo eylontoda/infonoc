@@ -82,12 +82,12 @@
         border: 1px solid var(--border-color);
     }
 
-    #tabelaInformativos {
+    #tabelaInformativos, #tabelaAbertura {
         table-layout: fixed !important;
         word-wrap: break-word;
     }
 
-    #tabelaInformativos tbody td {
+    #tabelaInformativos tbody td, #tabelaAbertura tbody td {
         font-size: 11px !important;
         padding: 6px 8px !important;
         vertical-align: middle;
@@ -374,20 +374,52 @@
     </div>
 
     <!-- Tabela Dinâmica -->
+    <!-- [NOVO] Tabela de Chamados em Abertura (Separada) -->
+    <div id="containerAbertura" class="mb-4 d-none">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <div class="badge bg-info p-2 rounded-circle animate-pulse">
+                <i class="bi bi-megaphone-fill fs-6 text-white"></i>
+            </div>
+            <h5 class="fw-bold mb-0" style="color: var(--primary-color); letter-spacing: -0.5px; font-size: 14px;">Chamados em Abertura</h5>
+            <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1" style="font-size: 9px; text-transform: uppercase;">Ação Imediata</span>
+        </div>
+        <div class="table-container shadow-sm" style="border-left: 5px solid #0dcaf0 !important;">
+            <div class="table-responsive">
+                <table id="tabelaAbertura" class="table table-hover w-100 align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 90px;">Protocolo</th>
+                            <th style="width: 95px;">Inicio</th>
+                            <th style="width: 130px;">Designador</th>
+                            <th>Descrição</th>
+                            <th style="width: 100px;">Inatividade</th>
+                            <th style="width: 90px;">Status</th>
+                            <th style="width: 95px;">Impacto</th>
+                            <th style="width: 95px;">Previsão</th>
+                            <th style="width: 80px;">Resgate</th>
+                            <th style="width: 160px;" class="text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <div class="table-container shadow-sm">
         <table id="tabelaInformativos" class="table table-hover w-100" style="width:100%">
             <thead>
                 <tr>
-                    <th>Protocolo</th>
-                    <th>Inicio</th>
-                    <th>Designador</th>
+                    <th style="width: 90px;">Protocolo</th>
+                    <th style="width: 95px;">Inicio</th>
+                    <th style="width: 130px;">Designador</th>
                     <th>Descrição</th>
-                    <th>Inatividade</th>
-                    <th>Status</th>
-                    <th>Impacto</th>
-                    <th>Previsão</th>
-                    <th>Resgate</th>
-                    <th class="text-center">Ações</th>
+                    <th style="width: 100px;">Inatividade</th>
+                    <th style="width: 90px;">Status</th>
+                    <th style="width: 95px;">Impacto</th>
+                    <th style="width: 95px;">Previsão</th>
+                    <th style="width: 80px;">Resgate</th>
+                    <th style="width: 160px;" class="text-center">Ações</th>
                 </tr>
                 <tr class="filter-row">
                     <th></th>
@@ -454,26 +486,6 @@
         </div>
     </div>
 
-    <!-- 4. Modal de Criação (Novo Incidente) -->
-    <div class="modal fade" id="modalNovo" tabindex="-1" aria-labelledby="modalNovoLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content shadow-lg border-0" style="border-radius: 15px; background: var(--bg-card); color: var(--text-main);">
-                <div class="modal-header border-bottom">
-                    <h5 class="modal-title fw-bold" id="modalNovoLabel">
-                        <i class="bi bi-plus-circle-fill me-2" style="color: #008891;"></i>Abrir Novo Incidente
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body" id="conteudoNovo">
-                    <div class="text-center py-5">
-                        <div class="spinner-border" style="color: #008891;" role="status"></div>
-                        <p class="mt-2 text-muted" style="font-size: 11px;">Carregando formulário de abertura...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
 </div>
 {% endblock %}
 
@@ -485,151 +497,73 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-    // Injeta o usuário atual para lógica condicional no frontend
     const CURRENT_USER = "{{ request.user.username }}";
-
+    const API_URL = "{% url 'users:api_incidents_list' %}";
+    
     $(document).ready(function () {
-
-        /**
-         * LÓGICA DE FILTRAGEM CUSTOMIZADA (Regular vs Escalonado)
-         */
-        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
-            const filterType = $('input[name="filterType"]:checked').attr('id');
-            const statusCol = data[5] || ''; // Coluna 5 é o Status
-
-            if (filterType === 'btnRegular') {
-                if (statusCol.includes('Escalonado')) return false;
-            } else if (filterType === 'btnEscalonado') {
-                if (!statusCol.includes('Escalonado')) return false;
-            }
-            return true;
-        });
-
-        // Configuração de Inputs do Cabeçalho
-        $('#tabelaInformativos thead tr.filter-row th').each(function (i) {
-            const title = $('#tabelaInformativos thead tr:eq(0) th').eq(i).text();
-            if (['Protocolo', 'Inicio', 'Designador', 'Descrição'].includes(title.trim())) {
-                $(this).html(`<input type="text" class="column-filter" placeholder="🔍 ${title}" />`);
-            }
-            else if (['Status', 'Impacto', 'Resgate', 'Inatividade', 'Previsão'].includes(title.trim())) {
-                let options = '<option value="">Todos</option>';
-                if (title.trim() === 'Status') {
-                    options += '<option value="NOT_NORMALIZADO">Não Normalizados</option>';
-                }
-                else if (title.trim() === 'Inatividade') {
-                    options += '<option value="INATIVO">Atrasados</option>';
-                    options += '<option value="ATIVO">Recentes</option>';
-                    options += '<option value="PAUSADO">Pausados</option>';
-                }
-                else if (title.trim() === 'Previsão') {
-                    options += '<option value="EM_DIA">Em dia</option>';
-                    options += '<option value="PROXIMO">Próximos</option>';
-                    options += '<option value="ATRASADO">Atrasados</option>';
-                }
-                $(this).html(`<select class="column-filter-select">${options}</select>`);
-            }
-            else if (title.trim() === 'Ações') {
-                $(this).html('<button id="btnLimparFiltros" class="btn btn-sm btn-outline-danger w-100 p-0" title="Limpar Filtros" style="font-size: 8px; height: 22px; font-weight: bold; line-height: 20px;">Limpar Filtros</button>');
-            }
-        });
-
-        const table = $('#tabelaInformativos').DataTable({
-            responsive: true,
-            autoWidth: false,
-            order: [[1, 'desc']], // Padrão: Mais recentes primeiro
-            orderCellsTop: true,
+        // [CONFIG] Configuração Comum para DataTables
+        const commonConfig = {
             language: {
-                url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/pt-BR.json',
-                search: "Pesquisar geral:",
-                lengthMenu: "Mostrar _MENU_ registros"
+                url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/pt-BR.json',
+                search: "",
+                searchPlaceholder: "Pesquisar incidente..."
             },
             pageLength: 25,
-            dom: '<"d-flex justify-content-between align-items-center mb-2"lf>rtip',
+            order: [[0, 'desc']],
+            responsive: true,
+            dom: '<"d-flex justify-content-between align-items-center mb-3"lf>rt<"d-flex justify-content-between align-items-center mt-3"ip>',
+            autoWidth: false,
+        };
+
+        // --- TABELA 1: EM ABERTURA (AÇÃO IMEDIATA) ---
+        const tableAbertura = $('#tabelaAbertura').DataTable({
+            ...commonConfig,
             ajax: {
-                url: "{% url 'users:api_incidents_list' %}",
-                dataSrc: 'incidents'
+                url: API_URL + "?status_filter=abertura",
+                dataSrc: (json) => {
+                    const data = json.incidents || [];
+                    $('#containerAbertura').toggleClass('d-none', data.length === 0);
+                    return data;
+                }
             },
             columns: [
                 {
                     data: 'protocol_internal',
                     className: 'text-center align-middle',
-                    defaultContent: 'S/P',
                     width: '90px',
-                    render: (data, type, row) => {
-                        let html = `<div class="fw-bold">${data || 'S/P'}</div>`;
-                        if (row.protocol && row.protocol !== 'S/P' && row.protocol !== '') {
-                            html += `<div class="text-muted" style="font-size: 8px;">(MK: ${row.protocol})</div>`;
-                        }
-                        return html;
-                    }
+                    render: (data, type, row) => `<div class="fw-bold">${data || 'S/P'}</div>` + (row.protocol && row.protocol !== 'S/P' ? `<div class="text-muted" style="font-size: 11px;">${row.protocol}</div>` : '')
                 },
-                {
-                    data: 'occured_at',
-                    className: 'text-center align-middle',
-                    defaultContent: 'N/D',
-                    width: '95px',
-                    render: (data, type, row) => type === 'sort' ? (row.occured_at_iso || 0) : (data || 'N/D')
-                },
-                {
-                    data: 'designator',
-                    className: 'align-middle',
-                    defaultContent: 'N/D',
-                    width: '130px',
-                    render: (data) => `<div class="fw-bold" style="width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${data || ''}">${data || 'N/D'}</div>`
-                },
-                {
-                    data: 'description',
-                    className: 'align-middle',
-                    defaultContent: 'Sem descrição',
-                    render: (data) => `<div class="description-cell" style="width: 100%;" title="${data || ''}">${data || ''}</div>`
-                },
+                { data: 'occured_at', className: 'text-center align-middle', width: '95px', render: (data, type, row) => type === 'display' ? `<div style="font-size: 10px;">${data}</div>` : (type === 'sort' ? (row.occured_at_iso || 0) : data) },
+                { data: 'designator', className: 'align-middle fw-bold text-primary', width: '130px', render: (data) => `<div class="text-truncate" style="max-width: 130px; font-size: 10px;" title="${data || ''}">${data || 'N/D'}</div>` },
+                { data: 'description', className: 'align-middle', render: (data) => `<div class="description-cell" title="${data || ''}">${data || ''}</div>` },
                 {
                     data: 'inactivity_minutes',
                     className: 'align-middle',
-                    type: 'num',
-                    defaultContent: 0,
                     width: '100px',
                     render: (data, type, row) => {
-                        const isNormalized = row.status_name === 'Normalizado';
-                        if (isNormalized) return '';
-
+                        if (row.status_name === 'Normalizado') return '';
                         const isPaused = row.is_paused;
                         const diffMin = isPaused ? (parseInt(row.paused_minutes) || 0) : (parseInt(data) || 0);
-                        
-                        if (type === 'sort') return isPaused ? -1 : diffMin; // Pausados ficam no topo ou fundo conforme desejado
+                        if (type === 'sort') return isPaused ? -1 : diffMin;
 
-                        const d = Math.floor(diffMin / 1440);
-                        const h = Math.floor((diffMin % 1440) / 60);
+                        const h = Math.floor(diffMin / 60);
                         const m = diffMin % 60;
-
-                        let timeStr = isPaused ? "+ " : "";
-                        if (d > 0) timeStr += `${d}d `;
-                        if (h > 0 || d > 0) timeStr += `${h}h `;
-                        timeStr += `${m}min`;
-
+                        let timeStr = (isPaused ? "+ " : "") + (h > 0 ? h + "h " : "") + m + "min";
+                        
                         let color = "#60c4b0";
                         let progress = 0;
-
-                        if (isPaused) {
-                            color = "#6c757d"; // Cinza para pausados
-                            progress = row.paused_percent;
-                        } else {
-                            let maxVal = row.is_impact_active ? 60 : 180;
-                            if (row.is_impact_active) {
-                                if (diffMin >= 60) color = "var(--bs-danger)";
-                                else if (diffMin >= 45) color = "#ffc107";
-                            } else {
-                                if (diffMin >= 180) color = "var(--bs-danger)";
-                                else if (diffMin >= 120) color = "#ffc107";
-                            }
-                            progress = Math.min((diffMin / maxVal) * 100, 100);
+                        if (isPaused) { color = "#6c757d"; progress = row.paused_percent; }
+                        else {
+                            let threshold = row.is_impact_active ? 60 : 180;
+                            if (diffMin >= threshold) color = "var(--bs-danger)";
+                            else if (diffMin >= threshold * 0.75) color = "#ffc107";
+                            progress = Math.min((diffMin / threshold) * 100, 100);
                         }
-
                         return `
                             <div class="d-flex flex-column" style="gap: 2px; width: 100%;">
                                 <span class="fw-bold" style="color: ${color}; font-size: 10px;">${timeStr}</span>
                                 <div class="progress" style="height: 4px; background-color: rgba(0,0,0,0.05); border-radius: 2px;">
-                                    <div class="progress-bar" role="progressbar" style="width: ${progress}%; background-color: ${color}; transition: width 0.5s ease;"></div>
+                                    <div class="progress-bar" style="width: ${progress}%; background-color: ${color}; transition: width 0.5s ease;"></div>
                                 </div>
                             </div>`;
                     }
@@ -637,464 +571,345 @@
                 {
                     data: 'status_name',
                     className: 'text-center align-middle',
-                    defaultContent: 'Desconhecido',
-                    width: '90px',
+                    width: '80px',
                     render: (data, type) => {
-                        if (type === 'display') {
-                            if (data === 'Em abertura') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #0dcaf0; color: #000000;">${data}</span>`;
-                            else if (data === 'Em andamento') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #008891; color: #FFFFFF;">${data}</span>`;
-                            else if (data === 'Normalizado') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #198754; color: #FFFFFF;">${data}</span>`;
-                            else if (data === 'Escalonado') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #ffc107; color: #000000;">${data}</span>`;
-                            else if (data === 'Pausado') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #6c757d; color: #FFFFFF;">${data}</span>`;
-                            else if (data === 'Pendente resgate') return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #fd7e14; color: #FFFFFF;">${data}</span>`;
-                            else if (data.toLowerCase().includes('valida')) return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #6f42c1; color: #FFFFFF;">${data}</span>`;
-                            else if (data.toLowerCase().includes('terceiro')) return `<span class="badge rounded-pill" style="font-size: 9px; background-color: #fd7e14; color: #FFFFFF;">${data}</span>`;
-                            return `<span class="badge rounded-pill bg-secondary" style="font-size: 9px;">${data || 'N/D'}</span>`;
-                        }
-                        return data || '';
+                        if (type !== 'display') return data;
+                        let color = '#60c4b0';
+                        const n = data.toLowerCase();
+                        if (n === 'em andamento') color = '#008891';
+                        else if (n === 'normalizado') color = '#198754';
+                        else if (n === 'escalonado') color = '#ffc107';
+                        else if (n === 'pausado') color = '#6c757d';
+                        else if (n === 'pendente resgate') color = '#fd7e14';
+                        else if (n === 'em validação' || n === 'em validacao') color = '#6f42c1';
+                        return `<span class="badge rounded-pill" style="font-size: 9px; background-color: ${color};">${data}</span>`;
                     }
                 },
                 {
                     data: 'is_impact_active',
                     className: 'text-center align-middle',
-                    defaultContent: false,
-                    width: '95px',
-                    render: (data, type) => {
-                        let text = data ? 'Com Afetação' : 'Sem Afetação';
-                        if (type === 'display') {
-                            let badgeClass = data ? 'bg-danger' : 'bg-info';
-                            if (!data) {
-                                return `<span class="badge" style="font-size: 9px; background-color: #008891; color: white;">${text}</span>`;
-                            }
-                            return `<span class="badge ${badgeClass}" style="font-size: 9px;">${text}</span>`;
-                        }
-                        return text;
-                    }
+                    width: '85px',
+                    render: (data, type) => type === 'display' ? `<span class="badge ${data ? 'bg-danger' : 'bg-info'}" style="font-size: 9px; ${!data ? 'background-color: #008891 !important;' : ''}">${data ? 'Com Afetação' : 'Sem Afetação'}</span>` : data
                 },
                 {
                     data: 'progress',
                     className: 'text-start align-middle',
-                    width: '95px',
+                    width: '85px',
                     render: (data, type, row) => {
-                        // Se não houver afetação, deixa vazio conforme solicitado
-                        if (!row.is_impact_active) return '';
-
-                        if (!data) return '<span class="text-muted" style="font-size: 10px;">Sem previsão</span>';
-
-                        const circumference = 50.2;
-                        const strokeLength = (data.percent / 100) * circumference;
-
-                        let color = "#60c4b0"; // Ciano claro (padrão > 30min)
-                        if (data.is_overdue) {
-                            color = "#dc3545"; // Vermelho (atrasado)
-                        } else if (data.remaining_minutes < 30) {
-                            color = "#ffc107"; // Amarelo (< 30min)
-                        }
-
+                        if (!row.is_impact_active || !data) return '';
+                        const color = data.is_overdue ? "#dc3545" : (data.remaining_minutes < 30 ? "#ffc107" : "#60c4b0");
                         return `
                         <div class="d-flex align-items-center" style="line-height: 1;">
-                            <svg width="18" height="18" viewBox="0 0 20 20" class="me-2" style="display: block;">
+                            <svg width="18" height="18" viewBox="0 0 20 20" class="me-2">
                                 <circle cx="10" cy="10" r="8" fill="none" stroke="#e9ecef" stroke-width="3" />
-                                <circle cx="10" cy="10" r="8" fill="none" stroke="${color}" stroke-width="3"
-                                        stroke-dasharray="${strokeLength}, ${circumference}" 
-                                        transform="rotate(-90 10 10)" style="transition: stroke-dasharray 0.5s ease;" />
+                                <circle cx="10" cy="10" r="8" fill="none" stroke="${color}" stroke-width="3" stroke-dasharray="${(data.percent * 50.2) / 100}, 50.2" transform="rotate(-90 10 10)" />
                             </svg>
-                            <span class="fw-bold" style="font-size: 10px; color: ${color}; line-height: 1; margin-top: 1px;">${data.is_overdue ? 'Atrasado' : data.label}</span>
+                            <span class="fw-bold" style="font-size: 10px; color: ${color};">${data.is_overdue ? 'Atrasado' : data.label}</span>
                         </div>`;
                     }
                 },
-                {
-                    data: 'assigned_to',
-                    className: 'text-center align-middle',
-                    defaultContent: 'Livre',
-                    width: '80px',
-                    render: (data) => `<span class="fw-bold text-muted" style="font-size: 10px;">${data}</span>`
+                { 
+                    data: 'assigned_to', 
+                    className: 'text-center align-middle', 
+                    width: '70px', 
+                    render: (data) => {
+                        let color = 'inherit';
+                        let text = data || 'Livre';
+                        if (data === CURRENT_USER) color = '#60c4b0';
+                        else if (!data || data === 'Livre') color = '#fd7e14';
+                        return `<span class="fw-bold" style="font-size: 10px; color: ${color};">${text}</span>`;
+                    }
                 },
                 {
                     data: null,
                     orderable: false,
                     className: 'text-center align-middle',
-                    defaultContent: '',
                     width: '160px',
-                    render: (data, type, row) => {
-                        if (!row) return '';
-                        return `
+                    render: (data, type, row) => `
                         <div class="btn-group shadow-sm">
-                            <button class="btn btn-sm btn-table-action btn-action-view" 
-                                    hx-get="/incidents/detalhe-ajax/${row.protocol_internal}/" hx-target="#conteudoDetalhes" data-bs-toggle="offcanvas" data-bs-target="#offcanvasDetalhes" title="Ver Detalhes">
-                                <i class="bi bi-eye-fill"></i>
-                            </button>
-                            <button class="btn btn-sm btn-table-action btn-action-add" 
-                                    hx-get="/incidents/atualizar-ajax/${row.protocol_internal}/" hx-target="#conteudoAtualizacao" data-bs-toggle="offcanvas" data-bs-target="#offcanvasAtualizacao" title="Inserir Atualização">
-                                <i class="bi bi-plus-square-fill"></i>
-                            </button>
-                            ${row.assigned_to === CURRENT_USER ? `
-                                <button class="btn btn-sm btn-table-action btn-action-release" onclick="informativoManager.liberarResponsabilidade('${row.protocol_internal}')" title="Liberar Resgate">
-                                    <i class="bi bi-person-dash-fill"></i>
-                                </button>
-                            ` : `
-                                <button class="btn btn-sm btn-table-action btn-action-assign" onclick="informativoManager.assumirResponsabilidade('${row.protocol_internal}')" title="Assumir Responsabilidade">
-                                    <i class="bi bi-person-check-fill"></i>
-                                </button>
-                            `}
-                            <button class="btn btn-sm btn-table-action btn-action-edit" 
-                                    hx-get="/incidents/editar-ajax/${row.protocol_internal}/" hx-target="#conteudoEditar" data-bs-toggle="offcanvas" data-bs-target="#offcanvasEditar" title="Editar Chamado">
-                                <i class="bi bi-pencil-fill"></i>
-                            </button>
-                            <button class="btn btn-sm btn-table-action btn-action-delete" onclick="informativoManager.excluirChamado('${row.protocol_internal}')" title="Excluir">
-                                <i class="bi bi-trash-fill"></i>
-                            </button>
+                            <button class="btn btn-sm btn-table-action btn-action-view" hx-get="/incidents/detalhe-ajax/${row.protocol_internal}/" hx-target="#conteudoDetalhes" data-bs-toggle="offcanvas" data-bs-target="#offcanvasDetalhes"><i class="bi bi-eye-fill"></i></button>
+                            <button class="btn btn-sm btn-table-action btn-action-add" hx-get="/incidents/atualizar-ajax/${row.protocol_internal}/" hx-target="#conteudoAtualizacao" data-bs-toggle="offcanvas" data-bs-target="#offcanvasAtualizacao"><i class="bi bi-plus-square-fill"></i></button>
+                            ${row.assigned_to === CURRENT_USER ? 
+                                `<button class="btn btn-sm btn-table-action btn-action-release" onclick="informativoManager.liberarResponsabilidade('${row.protocol_internal}')"><i class="bi bi-person-dash-fill"></i></button>` : 
+                                `<button class="btn btn-sm btn-table-action btn-action-assign" onclick="informativoManager.assumirResponsabilidade('${row.protocol_internal}')"><i class="bi bi-person-check-fill"></i></button>`
+                            }
+                            <button class="btn btn-sm btn-table-action btn-action-edit" hx-get="/incidents/editar-ajax/${row.protocol_internal}/" hx-target="#conteudoEditar" data-bs-toggle="offcanvas" data-bs-target="#offcanvasEditar"><i class="bi bi-pencil-fill"></i></button>
+                            <button class="btn btn-sm btn-table-action btn-action-delete" onclick="informativoManager.excluirChamado('${row.protocol_internal}')"><i class="bi bi-trash-fill"></i></button>
+                        </div>`
+                }
+            ],
+            drawCallback: function() { if (typeof htmx !== 'undefined') htmx.process(this.get(0)); }
+        });
+
+        // --- TABELA 2: INFORMATIVOS GERAIS (PRINCIPAL) ---
+        
+        // Filtro Customizado para o Dashboard Principal (Regular vs Escalonado)
+        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+            if (settings.nTable.id !== 'tabelaInformativos') return true;
+            const filterType = $('input[name="filterType"]:checked').attr('id');
+            const statusCol = data[5] || '';
+            if (filterType === 'btnRegular') return !statusCol.includes('Escalonado');
+            if (filterType === 'btnEscalonado') return statusCol.includes('Escalonado');
+            return true;
+        });
+
+        // Configuração de Inputs do Cabeçalho (Filtros de Coluna)
+        $('#tabelaInformativos thead tr.filter-row th').each(function (i) {
+            const title = $('#tabelaInformativos thead tr:eq(0) th').eq(i).text().trim();
+            if (['Protocolo', 'Inicio', 'Designador', 'Descrição'].includes(title)) {
+                $(this).html(`<input type="text" class="column-filter" placeholder="🔍 ${title}" />`);
+            } else if (['Status', 'Impacto', 'Resgate', 'Inatividade', 'Previsão'].includes(title)) {
+                let options = '<option value="">Todos</option>';
+                if (title === 'Status') options += '<option value="NOT_NORMALIZADO">Não Normalizados</option>';
+                else if (title === 'Inatividade') {
+                    options += '<option value="INATIVO">Atrasados</option>';
+                    options += '<option value="ATIVO">Recentes</option>';
+                    options += '<option value="PAUSADO">Pausados</option>';
+                } else if (title === 'Previsão') {
+                    options += '<option value="EM_DIA">Em dia</option>';
+                    options += '<option value="PROXIMO">Próximos</option>';
+                    options += '<option value="ATRASADO">Atrasados</option>';
+                }
+                $(this).html(`<select class="column-filter-select">${options}</select>`);
+            } else if (title === 'Ações') {
+                $(this).html('<button id="btnLimparFiltros" class="btn btn-sm btn-outline-danger w-100 p-0" title="Limpar Filtros" style="font-size: 8px; height: 22px; font-weight: bold;">Limpar</button>');
+            }
+        });
+
+        const tableMain = $('#tabelaInformativos').DataTable({
+            ...commonConfig,
+            ajax: {
+                url: API_URL + "?status_filter=regular",
+                dataSrc: 'incidents'
+            },
+            columns: [
+                {
+                    data: 'protocol_internal',
+                    className: 'text-center align-middle',
+                    width: '90px',
+                    render: (data, type, row) => `<div class="fw-bold">${data || 'S/P'}</div>` + (row.protocol && row.protocol !== 'S/P' ? `<div class="text-muted" style="font-size: 11px;">${row.protocol}</div>` : '')
+                },
+                { data: 'occured_at', className: 'text-center align-middle', width: '95px', render: (data, type, row) => type === 'display' ? `<div style="font-size: 10px;">${data}</div>` : (type === 'sort' ? (row.occured_at_iso || 0) : data) },
+                { data: 'designator', className: 'align-middle fw-bold text-primary', width: '130px', render: (data) => `<div class="text-truncate" style="max-width: 130px; font-size: 10px;" title="${data || ''}">${data || 'N/D'}</div>` },
+                { data: 'description', className: 'align-middle', render: (data) => `<div class="description-cell" title="${data || ''}">${data || ''}</div>` },
+                {
+                    data: 'inactivity_minutes',
+                    className: 'align-middle',
+                    width: '100px',
+                    render: (data, type, row) => {
+                        if (row.status_name === 'Normalizado') return '';
+                        const isPaused = row.is_paused;
+                        const diffMin = isPaused ? (parseInt(row.paused_minutes) || 0) : (parseInt(data) || 0);
+                        if (type === 'sort') return isPaused ? -1 : diffMin;
+
+                        const h = Math.floor(diffMin / 60);
+                        const m = diffMin % 60;
+                        let timeStr = (isPaused ? "+ " : "") + (h > 0 ? h + "h " : "") + m + "min";
+                        
+                        let color = "#60c4b0";
+                        let progress = 0;
+                        if (isPaused) { color = "#6c757d"; progress = row.paused_percent; }
+                        else {
+                            let threshold = row.is_impact_active ? 60 : 180;
+                            if (diffMin >= threshold) color = "var(--bs-danger)";
+                            else if (diffMin >= threshold * 0.75) color = "#ffc107";
+                            progress = Math.min((diffMin / threshold) * 100, 100);
+                        }
+                        return `
+                            <div class="d-flex flex-column" style="gap: 2px; width: 100%;">
+                                <span class="fw-bold" style="color: ${color}; font-size: 10px;">${timeStr}</span>
+                                <div class="progress" style="height: 4px; background-color: rgba(0,0,0,0.05); border-radius: 2px;">
+                                    <div class="progress-bar" style="width: ${progress}%; background-color: ${color}; transition: width 0.5s ease;"></div>
+                                </div>
+                            </div>`;
+                    }
+                },
+                {
+                    data: 'status_name',
+                    className: 'text-center align-middle',
+                    width: '80px',
+                    render: (data, type) => {
+                        if (type !== 'display') return data;
+                        let color = '#60c4b0';
+                        const n = data.toLowerCase();
+                        if (n === 'em andamento') color = '#008891';
+                        else if (n === 'normalizado') color = '#198754';
+                        else if (n === 'escalonado') color = '#ffc107';
+                        else if (n === 'pausado') color = '#6c757d';
+                        else if (n === 'pendente resgate') color = '#fd7e14';
+                        else if (n === 'em validação' || n === 'em validacao') color = '#6f42c1';
+                        return `<span class="badge rounded-pill" style="font-size: 9px; background-color: ${color};">${data}</span>`;
+                    }
+                },
+                {
+                    data: 'is_impact_active',
+                    className: 'text-center align-middle',
+                    width: '85px',
+                    render: (data, type) => type === 'display' ? `<span class="badge ${data ? 'bg-danger' : 'bg-info'}" style="font-size: 9px; ${!data ? 'background-color: #008891 !important;' : ''}">${data ? 'Com Afetação' : 'Sem Afetação'}</span>` : data
+                },
+                {
+                    data: 'progress',
+                    className: 'text-start align-middle',
+                    width: '85px',
+                    render: (data, type, row) => {
+                        if (!row.is_impact_active || !data) return '';
+                        const color = data.is_overdue ? "#dc3545" : (data.remaining_minutes < 30 ? "#ffc107" : "#60c4b0");
+                        return `
+                        <div class="d-flex align-items-center" style="line-height: 1;">
+                            <svg width="18" height="18" viewBox="0 0 20 20" class="me-2">
+                                <circle cx="10" cy="10" r="8" fill="none" stroke="#e9ecef" stroke-width="3" />
+                                <circle cx="10" cy="10" r="8" fill="none" stroke="${color}" stroke-width="3" stroke-dasharray="${(data.percent * 50.2) / 100}, 50.2" transform="rotate(-90 10 10)" />
+                            </svg>
+                            <span class="fw-bold" style="font-size: 10px; color: ${color};">${data.is_overdue ? 'Atrasado' : data.label}</span>
                         </div>`;
                     }
+                },
+                { 
+                    data: 'assigned_to', 
+                    className: 'text-center align-middle', 
+                    width: '70px', 
+                    render: (data) => {
+                        let color = 'inherit';
+                        let text = data || 'Livre';
+                        if (data === CURRENT_USER) color = '#60c4b0';
+                        else if (!data || data === 'Livre') color = '#fd7e14';
+                        return `<span class="fw-bold" style="font-size: 10px; color: ${color};">${text}</span>`;
+                    }
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    className: 'text-center align-middle',
+                    width: '160px',
+                    render: (data, type, row) => `
+                        <div class="btn-group shadow-sm">
+                            <button class="btn btn-sm btn-table-action btn-action-view" hx-get="/incidents/detalhe-ajax/${row.protocol_internal}/" hx-target="#conteudoDetalhes" data-bs-toggle="offcanvas" data-bs-target="#offcanvasDetalhes"><i class="bi bi-eye-fill"></i></button>
+                            <button class="btn btn-sm btn-table-action btn-action-add" hx-get="/incidents/atualizar-ajax/${row.protocol_internal}/" hx-target="#conteudoAtualizacao" data-bs-toggle="offcanvas" data-bs-target="#offcanvasAtualizacao"><i class="bi bi-plus-square-fill"></i></button>
+                            ${row.assigned_to === CURRENT_USER ? 
+                                `<button class="btn btn-sm btn-table-action btn-action-release" onclick="informativoManager.liberarResponsabilidade('${row.protocol_internal}')"><i class="bi bi-person-dash-fill"></i></button>` : 
+                                `<button class="btn btn-sm btn-table-action btn-action-assign" onclick="informativoManager.assumirResponsabilidade('${row.protocol_internal}')"><i class="bi bi-person-check-fill"></i></button>`
+                            }
+                            <button class="btn btn-sm btn-table-action btn-action-edit" hx-get="/incidents/editar-ajax/${row.protocol_internal}/" hx-target="#conteudoEditar" data-bs-toggle="offcanvas" data-bs-target="#offcanvasEditar"><i class="bi bi-pencil-fill"></i></button>
+                            <button class="btn btn-sm btn-table-action btn-action-delete" onclick="informativoManager.excluirChamado('${row.protocol_internal}')"><i class="bi bi-trash-fill"></i></button>
+                        </div>`
                 }
             ],
             initComplete: function () {
                 const api = this.api();
-
-                // Popular os Dropdowns do cabeçalho (Inatividade, Status, Impacto, Resgate)
                 api.columns([4, 5, 6, 7, 8]).every(function () {
                     const column = this;
                     const select = $('#tabelaInformativos thead tr.filter-row th').eq(column.index()).find('select');
-
                     if (select.length > 0) {
-                        // Inatividade (4) e Previsão (7) têm opções fixas
                         if (column.index() !== 4 && column.index() !== 7) {
-                            column.cells('', column.index()).render('filter').unique().sort().each(function (d) {
-                                if (d) select.append(`<option value="${d}">${d}</option>`);
-                            });
+                            column.cells('', column.index()).render('filter').unique().sort().each(d => d && select.append(`<option value="${d}">${d}</option>`));
                         }
-
                         select.on('change', function () {
                             const val = $(this).val();
-
-                            // Limpa filtros customizados globais ao mudar qualquer select
                             $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(f => !['filterInatividade', 'filterPrevisao'].includes(f.name));
-
-                            if (val === 'NOT_NORMALIZADO') {
-                                column.search('^(?!Normalizado$).*', true, false).draw();
-                            }
-                            else if (column.index() === 4 && (val === 'INATIVO' || val === 'ATIVO' || val === 'PAUSADO')) {
-                                const filterFn = function filterInatividade(settings, data, dataIndex) {
-                                    const row = table.row(dataIndex).data();
-                                    const minutes = parseInt(row.inactivity_minutes) || 0;
-                                    const isImpact = row.is_impact_active;
-                                    const threshold = isImpact ? 60 : 180;
-
-                                    if (val === 'PAUSADO') return row.is_paused;
-                                    if (val === 'INATIVO') return minutes >= threshold && !row.is_paused;
-                                    if (val === 'ATIVO') return minutes < threshold && !row.is_paused;
+                            if (val === 'NOT_NORMALIZADO') column.search('^(?!Normalizado$).*', true, false).draw();
+                            else if (column.index() === 4 && val) {
+                                const filterFn = function filterInatividade(s, d, idx) {
+                                    const r = tableMain.row(idx).data();
+                                    const thresh = r.is_impact_active ? 60 : 180;
+                                    if (val === 'PAUSADO') return r.is_paused;
+                                    if (val === 'INATIVO') return r.inactivity_minutes >= thresh && !r.is_paused;
+                                    if (val === 'ATIVO') return r.inactivity_minutes < thresh && !r.is_paused;
                                     return true;
                                 };
                                 filterFn.name = 'filterInatividade';
                                 $.fn.dataTable.ext.search.push(filterFn);
-                                table.draw();
-                            }
-                            else if (column.index() === 7 && val) {
-                                const filterFn = function filterPrevisao(settings, data, dataIndex) {
-                                    const row = table.row(dataIndex).data();
-                                    const progress = row.progress;
-                                    if (!progress) return false;
-
-                                    if (val === 'ATRASADO') return progress.is_overdue;
-                                    if (val === 'PROXIMO') return !progress.is_overdue && progress.remaining_minutes < 30;
-                                    if (val === 'EM_DIA') return !progress.is_overdue && progress.remaining_minutes >= 30;
+                                tableMain.draw();
+                            } else if (column.index() === 7 && val) {
+                                const filterFn = function filterPrevisao(s, d, idx) {
+                                    const p = tableMain.row(idx).data().progress;
+                                    if (!p) return false;
+                                    if (val === 'ATRASADO') return p.is_overdue;
+                                    if (val === 'PROXIMO') return !p.is_overdue && p.remaining_minutes < 30;
+                                    if (val === 'EM_DIA') return !p.is_overdue && p.remaining_minutes >= 30;
                                     return true;
                                 };
                                 filterFn.name = 'filterPrevisao';
                                 $.fn.dataTable.ext.search.push(filterFn);
-                                table.draw();
-                            }
-                            else {
-                                const escapedVal = $.fn.dataTable.util.escapeRegex(val);
-                                column.search(escapedVal ? `^${escapedVal}$` : '', true, false).draw();
+                                tableMain.draw();
+                            } else {
+                                column.search(val ? `^${$.fn.dataTable.util.escapeRegex(val)}$` : '', true, false).draw();
                             }
                         });
                     }
                 });
 
-                // Inserir Botão "Novo Incidente" ao lado da busca
-                const btnNovoHtml = `
-                    <button class="btn btn-sm text-white me-3 d-flex align-items-center fw-bold transition-all shadow-sm" 
-                            style="background-color: #008891; border-radius: 8px; font-size: 11px; height: 31px; border: none;"
-                            hx-get="/novo-ajax/" hx-target="#conteudoNovo"
-                            data-bs-toggle="modal" data-bs-target="#modalNovo">
-                        <i class="bi bi-plus-lg me-2"></i> Novo incidente
-                    </button>
-                `;
-                const $filterContainer = $('.dataTables_filter');
-                $filterContainer.addClass('d-flex align-items-center');
-                $filterContainer.prepend(btnNovoHtml);
-                
-                // Processa o HTMX no novo botão
-                if (typeof htmx !== 'undefined') {
-                    htmx.process($filterContainer[0]);
-                }
+                // Botão Novo Incidente (Adicionado apenas à tabela principal)
+                const btnNovoHtml = `<button class="btn btn-sm text-white me-3 d-flex align-items-center fw-bold transition-all shadow-sm" style="background-color: #008891; border-radius: 8px; font-size: 11px; height: 31px; border: none;" hx-get="/novo-ajax/" hx-target="#conteudoNovo" data-bs-toggle="modal" data-bs-target="#modalNovo"><i class="bi bi-plus-lg me-2"></i> Novo incidente</button>`;
+                const filterContainer = $(api.table().container()).find('.dataTables_filter');
+                filterContainer.addClass('d-flex align-items-center').prepend(btnNovoHtml);
+                if (typeof htmx !== 'undefined') htmx.process(filterContainer[0]);
 
-                // Carregamento inicial: "Não Normalizados" (Padrão solicitado)
-                const statusColIndex = 5;
-                api.column(statusColIndex).search('^(?!Normalizado$).*', true, false).draw();
-                $('#tabelaInformativos thead tr.filter-row th').eq(statusColIndex).find('select').val('NOT_NORMALIZADO');
-            }
-        });
-
-        // Implementação Global das Ações (Informativo Manager)
-        window.informativoManager = {
-            assumirResponsabilidade: async function (protocolo) {
-                const { value: accept } = await Swal.fire({
-                    title: 'Resgatar Incidente?',
-                    text: `Deseja assumir a responsabilidade pelo protocolo ${protocolo}?`,
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonColor: '#60c4b0',
-                    cancelButtonColor: '#6c757d',
-                    confirmButtonText: 'Sim, resgatar',
-                    cancelButtonText: 'Cancelar'
-                });
-
-                if (accept) {
-                    try {
-                        const response = await fetch(`/incidents/resgatar-ajax/${protocolo}/`, {
-                            method: 'POST',
-                            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
-                        });
-                        const data = await response.json();
-                        if (data.success) {
-                            Swal.fire({ title: 'Sucesso!', text: 'Chamado resgatado com sucesso.', icon: 'success', timer: 1500 });
-                            table.ajax.reload(null, false);
-
-                            // Sincroniza o offcanvas se estiver aberto para este protocolo
-                            const activeConteudo = document.querySelector('.offcanvas.show [id^="conteudo"]');
-                            if (activeConteudo && activeConteudo.getAttribute('data-protocol') === protocolo) {
-                                const lastUrl = activeConteudo.getAttribute('data-last-url');
-                                if (lastUrl) htmx.ajax('GET', lastUrl, { target: '#' + activeConteudo.id });
-                            }
-                        } else {
-                            Swal.fire('Erro!', data.error || 'Não foi possível resgatar o chamado.', 'error');
-                        }
-                    } catch (e) {
-                        Swal.fire('Erro!', 'Erro de comunicação.', 'error');
-                    }
-                }
+                // Padrão: Não Normalizados
+                api.column(5).search('^(?!Normalizado$).*', true, false).draw();
+                $('.column-filter-select').eq(1).val('NOT_NORMALIZADO');
             },
-
-            liberarResponsabilidade: async function (protocolo) {
-                const { value: accept } = await Swal.fire({
-                    title: 'Liberar Incidente?',
-                    text: `Deseja remover sua responsabilidade pelo protocolo ${protocolo}?`,
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#fd7e14',
-                    cancelButtonColor: '#6c757d',
-                    confirmButtonText: 'Sim, liberar!',
-                    cancelButtonText: 'Cancelar'
-                });
-
-                if (accept) {
-                    try {
-                        const response = await fetch(`/incidents/liberar-ajax/${protocolo}/`);
-                        const data = await response.json();
-                        if (data.success) {
-                            table.ajax.reload(null, false);
-
-                            // Sincroniza o offcanvas se estiver aberto para este protocolo
-                            const activeConteudo = document.querySelector('.offcanvas.show [id^="conteudo"]');
-                            if (activeConteudo && activeConteudo.getAttribute('data-protocol') === protocolo) {
-                                const lastUrl = activeConteudo.getAttribute('data-last-url');
-                                if (lastUrl) htmx.ajax('GET', lastUrl, { target: '#' + activeConteudo.id });
-                            }
-
-                            Swal.fire({
-                                title: 'Liberado!',
-                                text: 'O incidente agora está livre para outros operadores.',
-                                icon: 'success',
-                                timer: 2000,
-                                showConfirmButton: false
-                            });
-                        }
-                    } catch (err) {
-                        console.error(err);
-                    }
-                }
-            },
-
-            excluirChamado: async function (protocolo) {
-                const { value: accept } = await Swal.fire({
-                    title: 'Atenção!',
-                    text: "Deseja realmente ocultar este chamado? (Status mudará para Excluído e ele não aparecerá mais nesta lista)",
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#dc3545',
-                    cancelButtonColor: '#6c757d',
-                    confirmButtonText: 'Sim, excluir',
-                    cancelButtonText: 'Cancelar'
-                });
-
-                if (accept) {
-                    try {
-                        const response = await fetch(`/incidents/excluir-ajax/${protocolo}/`);
-                        const data = await response.json();
-                        if (data.success) {
-                            table.ajax.reload(null, false);
-
-                            // Fecha o offcanvas se estiver aberto para este protocolo
-                            const activeOffcanvas = document.querySelector('.offcanvas.show');
-                            const activeConteudo = document.querySelector('.offcanvas.show [id^="conteudo"]');
-                            if (activeOffcanvas && activeConteudo && activeConteudo.getAttribute('data-protocol') === protocolo) {
-                                bootstrap.Offcanvas.getInstance(activeOffcanvas).hide();
-                            }
-
-                            Swal.fire({
-                                title: 'Excluído!',
-                                text: 'O incidente foi marcado como excluído.',
-                                icon: 'success',
-                                timer: 2000,
-                                showConfirmButton: false
-                            });
-                        } else {
-                            Swal.fire('Erro!', 'Não foi possível excluir o chamado.', 'error');
-                        }
-                    } catch (err) {
-                        console.error(err);
-                    }
-                }
-            }
-        };
-
-        // Recarregar o HTMX na paginação
-        table.on('draw', function () {
-            if (typeof htmx !== 'undefined') {
-                htmx.process(document.querySelector('#tabelaInformativos'));
-            }
+            drawCallback: function() { if (typeof htmx !== 'undefined') htmx.process(this.get(0)); }
         });
 
-        // Pesquisa nas colunas de input (ao pressionar Enter)
-        table.columns([0, 1, 2, 3]).every(function () {
-            const column = this;
-            const input = $('#tabelaInformativos thead tr.filter-row th').eq(column.index()).find('input');
-            input.off('keypress').on('keypress', function (e) {
-                if (e.which == 13) {
-                    e.preventDefault();
-                    column.search($(this).val()).draw();
-                }
-            });
-        });
-
-        // Evento de alteração dos Radio Buttons (Regular/Escalonado)
-        $('input[name="filterType"]').on('change', function () {
-            table.draw();
-        });
-
-        // Limpar todos os filtros (retorna ao estado "Regular" e "Não Normalizados")
-        $(document).on('click', '#btnLimparFiltros', function () {
-            $('.column-filter').val('');
-            $('.column-filter-select').val('');
+        // Eventos Globais
+        $('input[name="filterType"]').on('change', () => tableMain.draw());
+        $('#btnLimparFiltros').on('click', () => {
+            $('.column-filter, .column-filter-select').val('');
             $('#btnRegular').prop('checked', true);
-
-            // Limpa as buscas de todas as colunas
-            table.columns().search('');
-
-            // Limpa filtros customizados globais
+            tableMain.columns().search('');
             $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(f => !['filterInatividade', 'filterPrevisao'].includes(f.name));
-
-            // Reaplica o filtro padrão de Status
-            const statusColIndex = 5;
-            table.column(statusColIndex).search('^(?!Normalizado$).*', true, false);
-
-            // Localiza o select da coluna Status (index 5) e define como "Não Normalizados"
-            // Como temos selects nas colunas 4, 5, 6, 8, o de status é o segundo (index 1 no jQuery)
+            tableMain.column(5).search('^(?!Normalizado$).*', true, false);
             $('.column-filter-select').eq(1).val('NOT_NORMALIZADO');
-
-            table.draw();
+            tableMain.draw();
         });
 
-        $('.column-filter, .column-filter-select').on('click', (e) => e.stopPropagation());
-
-        setInterval(() => table.ajax.reload(null, false), 30000);
-
-        // Disparado quando a View de Atualização retorna o evento "atualizacaoConcluida"
-        document.body.addEventListener("atualizacaoConcluida", function (evt) {
-            table.ajax.reload(null, false);
+        // Pesquisa nas colunas
+        tableMain.columns([0, 1, 2, 3]).every(function () {
+            const col = this;
+            const input = $('#tabelaInformativos thead tr.filter-row th').eq(col.index()).find('input');
+            input.on('keypress', (e) => { if (e.which == 13) { e.preventDefault(); col.search(input.val()).draw(); } });
         });
 
-        // Captura o protocolo e URL carregados nos offcanvases para sincronização inteligente
-        document.addEventListener('htmx:afterOnLoad', function (evt) {
-            const targetId = evt.detail.target.id;
-            if (targetId && targetId.startsWith('conteudo')) {
-                const path = evt.detail.requestConfig.path;
-                const protocolMatch = path.match(/\/([^\/]+)\/$/);
-                if (protocolMatch) {
-                    evt.detail.target.setAttribute('data-protocol', protocolMatch[1]);
-                    evt.detail.target.setAttribute('data-last-url', path);
-                }
-            }
-        });
+        // Atualização Automática
+        setInterval(() => {
+            tableMain.ajax.reload(null, false);
+            tableAbertura.ajax.reload(null, false);
+            updateBalloons();
+        }, 30000);
 
-        // Disparado quando ocorre um erro de resposta do HTMX (ex: 400, 404, 500)
-        document.body.addEventListener("htmx:responseError", function (evt) {
-            Swal.fire({
-                title: 'Erro no Servidor',
-                text: 'Não foi possível processar sua solicitação. Status: ' + evt.detail.xhr.status,
-                icon: 'error',
-                confirmButtonColor: '#d33'
-            });
-        });
-
-        // Disparado quando ocorre um erro de validação no backend
-        window.addEventListener("erroValidacao", function (evt) {
-            Swal.fire({
-                title: 'Atenção!',
-                text: evt.detail.value || 'Verifique as informações preenchidas antes de salvar.',
-                icon: 'warning',
-                confirmButtonColor: '#008891'
-            });
-        });
-
-        // Atualização dos Balões
         async function updateBalloons() {
             try {
-                const response = await fetch("{% url 'users:api_dashboard_stats' %}");
-                if (!response.ok) return;
-                const data = await response.json();
-                const map = {
-                    'count-em-andamento': data.em_andamento_count,
-                    'count-normalizado': data.normalizado_count,
-                    'count-sem-afetacao': data.sem_afetacao_count,
-                    'count-com-afetacao': data.com_afetacao_count
-                };
-                Object.entries(map).forEach(([id, val]) => {
-                    const el = document.getElementById(id);
-                    if (el) el.innerText = val !== undefined ? val : '0';
-                });
-            } catch (e) { console.error('[ASGI Poll Error]:', e); }
+                const res = await fetch("{% url 'users:api_dashboard_stats' %}");
+                const d = await res.json();
+                const map = { 'count-em-andamento': d.em_andamento_count, 'count-normalizado': d.normalizado_count, 'count-sem-afetacao': d.sem_afetacao_count, 'count-com-afetacao': d.com_afetacao_count };
+                Object.entries(map).forEach(([id, v]) => { const el = document.getElementById(id); if (el) el.innerText = v || '0'; });
+            } catch (e) {}
         }
-        setInterval(updateBalloons, 30000);
         updateBalloons();
 
-        // Limpa o conteúdo e reseta o título dos offcanvas quando fechados
-        function limparOffcanvas(id, spinnerCor, texto, tituloOriginal) {
-            const el = document.getElementById(id);
-            if (el) {
-                el.addEventListener('hidden.bs.offcanvas', function () {
-                    // Reset do Conteúdo
-                    const target = id.replace('offcanvas', 'conteudo');
-                    document.getElementById(target).innerHTML = `
-                        <div class="text-center py-5">
-                            <div class="spinner-border text-${spinnerCor}" role="status"></div>
-                            <p class="mt-2 text-muted" style="font-size: 11px;">${texto}</p>
-                        </div>`;
+        document.body.addEventListener("atualizacaoConcluida", () => { tableMain.ajax.reload(null, false); tableAbertura.ajax.reload(null, false); });
+    });
 
-                    // Reset do Título (Importante pois a atualização/edição muda o título via OOB)
-                    const label = document.getElementById(id + 'Label');
-                    if (label && tituloOriginal) {
-                        label.innerHTML = tituloOriginal;
-                    }
-                });
+    // Manager Global
+    window.informativoManager = {
+        assumirResponsabilidade: async (proto) => {
+            const { value: ok } = await Swal.fire({ title: 'Resgatar?', text: `Assumir ${proto}?`, icon: 'question', showCancelButton: true, confirmButtonColor: '#60c4b0', confirmButtonText: 'Sim', cancelButtonText: 'Não' });
+            if (ok) {
+                const r = await fetch(`/incidents/resgatar-ajax/${proto}/`, { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token }}' } });
+                if ((await r.json()).success) { $('#tabelaInformativos').DataTable().ajax.reload(null, false); $('#tabelaAbertura').DataTable().ajax.reload(null, false); }
+            }
+        },
+        liberarResponsabilidade: async (proto) => {
+            const r = await fetch(`/incidents/liberar-ajax/${proto}/`);
+            if ((await r.json()).success) { $('#tabelaInformativos').DataTable().ajax.reload(null, false); $('#tabelaAbertura').DataTable().ajax.reload(null, false); }
+        },
+        excluirChamado: async (proto) => {
+            const { value: ok } = await Swal.fire({ title: 'Excluir?', text: `Marcar ${proto} como excluído?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc3545', confirmButtonText: 'Sim' });
+            if (ok) {
+                const r = await fetch(`/incidents/excluir-ajax/${proto}/`);
+                if ((await r.json()).success) { $('#tabelaInformativos').DataTable().ajax.reload(null, false); $('#tabelaAbertura').DataTable().ajax.reload(null, false); }
             }
         }
-
-        limparOffcanvas('offcanvasDetalhes', 'primary', 'Carregando dados estruturados...', '<i class="bi bi-info-circle-fill me-2"></i>Detalhes do Chamado');
-        limparOffcanvas('offcanvasAtualizacao', 'primary', 'Carregando formulário...', '<i class="bi bi-journal-plus me-2 text-primary"></i>Inserir Atualização');
-        limparOffcanvas('offcanvasEditar', 'warning', 'Carregando ambiente de edição...', '<i class="bi bi-pencil-square me-2 text-warning"></i>Editar Chamado');
-    });
+    };
 </script>
 {% endblock %}

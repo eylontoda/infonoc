@@ -107,7 +107,7 @@ class Incident(BaseModel):
     protocol_number = models.CharField(max_length=20, unique=True, db_index=True, editable=False, null=True, blank=True)
     mk_protocol = models.CharField(max_length=50, blank=True, db_index=True, default="")
     provider_protocol = models.CharField(max_length=100, blank=True, null=True, verbose_name="Protocolo Operadora")
-    no_provider_protocol = models.BooleanField(default=False, verbose_name="Fornecedor não gerou protocolo")
+    no_provider_protocol = models.BooleanField(default=False, verbose_name="Sem protocolo")
     
     status = models.ForeignKey(Status, on_delete=models.PROTECT)
     incident_type = models.ForeignKey(IncidentType, on_delete=models.PROTECT)

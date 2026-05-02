@@ -1,0 +1,755 @@
+{% extends "base.html" %}
+{% load static %}
+{% load permissions %}
+
+{% block title %}Gestão de Acessos - Sea Telecom{% endblock %}
+
+{% block extra_css %}
+<style>
+    .rbac-container {
+        background: var(--bg-card);
+        border-radius: 16px;
+        padding: 1.5rem;
+        border: 1px solid var(--border-color);
+        min-height: 70vh;
+    }
+
+    .nav-tabs-custom {
+        border-bottom: 1px solid var(--border-color);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .nav-tabs-custom .nav-link {
+        border: none;
+        color: var(--text-muted);
+        font-weight: 600;
+        font-size: 14px;
+        padding: 0.75rem 1rem;
+        position: relative;
+        background: transparent;
+    }
+
+    .nav-tabs-custom .nav-link.active {
+        color: var(--primary-color);
+    }
+
+    .nav-tabs-custom .nav-link.active::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--primary-color);
+        border-radius: 3px 3px 0 0;
+    }
+
+    /* Matrix Table Styles */
+    .matrix-table {
+        font-size: 12px;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .matrix-table th {
+        background: var(--bg-body) !important;
+        color: var(--text-muted) !important;
+        text-transform: uppercase;
+        font-size: 10px;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid var(--border-color) !important;
+        padding: 1rem 0.75rem !important;
+        text-align: center;
+    }
+
+    .matrix-table td {
+        padding: 0.75rem !important;
+        border-bottom: 1px solid var(--border-color) !important;
+        vertical-align: middle;
+    }
+
+    .matrix-module-row {
+        background: rgba(0, 136, 145, 0.05);
+        font-weight: 700;
+        color: #008891;
+    }
+
+    .matrix-checkbox {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: #008891;
+    }
+
+    /* User List Styles */
+    .user-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: #008891;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 14px;
+    }
+
+    .search-box {
+        position: relative;
+        max-width: 300px;
+    }
+
+    .search-box i {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+    }
+
+    .search-box input {
+        padding-left: 35px;
+        border-radius: 10px;
+        background: var(--bg-body);
+        border: 1px solid var(--border-color);
+        font-size: 13px;
+    }
+
+    [data-bs-theme="dark"] .matrix-module-row { background: rgba(0, 136, 145, 0.15); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-0" style="color: var(--text-main);">Gerenciamento de Acessos</h4>
+            <p class="text-muted small mb-0">Matriz de permissões RBAC e controle de usuários.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" onclick="window.location.reload()">
+                <i class="bi bi-arrow-clockwise"></i> Recarregar
+            </button>
+        </div>
+    </div>
+
+    <div class="rbac-container shadow-sm">
+        <ul class="nav nav-tabs nav-tabs-custom" id="rbacTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="matrix-tab" data-bs-toggle="tab" data-bs-target="#matrix" type="button" role="tab">
+                    <i class="bi bi-grid-3x3 me-2"></i>Matriz de Permissões
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab">
+                    <i class="bi bi-people me-2"></i>Gestão de Usuários
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="groups-tab" data-bs-toggle="tab" data-bs-target="#groups" type="button" role="tab">
+                    <i class="bi bi-shield-check me-2"></i>Gestão de Grupos
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="resources-tab" data-bs-toggle="tab" data-bs-target="#resources" type="button" role="tab">
+                    <i class="bi bi-gear-wide-connected me-2"></i>Gestão de Recursos
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="rbacTabsContent">
+            <!-- ABA 1: MATRIZ DE PERMISSÕES -->
+            <div class="tab-pane fade show active" id="matrix" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table matrix-table align-middle">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left; width: 300px;">Recurso / Módulo / Ação</th>
+                                {% for g in grupos %}
+                                <th>{{ g.name }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% regroup permissoes by module as module_list %}
+                            {% for module in module_list %}
+                                <tr class="matrix-module-row">
+                                    <td colspan="{{ grupos|length|add:1 }}">
+                                        <i class="bi bi-folder2-open me-2"></i>{{ module.grouper }}
+                                    </td>
+                                </tr>
+                                {% for p in module.list %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="fw-bold text-main">{{ p.name }}</div>
+                                        <div class="text-muted" style="font-size: 10px;">{{ p.description }}</div>
+                                        <code class="text-primary" style="font-size: 9px;">{{ p.slug }}</code>
+                                    </td>
+                                    {% for g in grupos %}
+                                    <td class="text-center">
+                                        <input type="checkbox" class="form-check-input matrix-checkbox" 
+                                               data-group="{{ g.id }}" data-perm="{{ p.id }}"
+                                               {% if p in g.ui_permissions.all %}checked{% endif %}
+                                               onchange="togglePermission(this)">
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ABA 2: GESTÃO DE USUÁRIOS -->
+            <div class="tab-pane fade" id="users" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="search-box">
+                        <i class="bi bi-search"></i>
+                        <input type="text" id="userSearch" class="form-control form-control-sm" placeholder="Buscar usuário..." onkeyup="filterUsers()">
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table align-middle" id="tableUsuarios">
+                        <thead>
+                            <tr class="text-muted small text-uppercase">
+                                <th>Usuário</th>
+                                <th>Status</th>
+                                <th>Grupos</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in usuarios %}
+                            <tr class="user-row">
+                                <td>
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="user-avatar">{{ u.username|first|upper }}</div>
+                                        <div>
+                                            <div class="fw-bold">{{ u.username }}</div>
+                                            <div class="text-muted small">{{ u.email|default:"S/E" }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if u.is_superuser %}
+                                        <span class="badge bg-danger p-1 px-2" style="font-size: 9px;">SUPERUSER</span>
+                                    {% elif u.is_staff %}
+                                        <span class="badge bg-warning text-dark p-1 px-2" style="font-size: 9px;">STAFF</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary p-1 px-2" style="font-size: 9px;">USER</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        {% for g in u.groups.all %}
+                                            <span class="badge bg-light text-dark border p-1 px-2" style="font-size: 10px;">{{ g.name }}</span>
+                                        {% empty %}
+                                            <span class="text-muted small italic">Nenhum grupo</span>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="openEditGroups({{ u.id }}, '{{ u.username }}', [{% for g in u.groups.all %}{{ g.id }},{% endfor %}])" title="Gerir Grupos">
+                                            <i class="bi bi-shield-lock"></i>
+                                        </button>
+                                        {% if request.user.is_superuser %}
+                                        <button class="btn btn-sm {% if u.is_superuser %}btn-danger{% else %}btn-outline-danger{% endif %}" 
+                                                onclick="toggleSuperuser({{ u.id }}, '{{ u.username }}', {{ u.is_superuser|lower }})" 
+                                                title="{% if u.is_superuser %}Remover Superuser{% else %}Promover a Superuser{% endif %}">
+                                            <i class="bi bi-star-fill"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ABA 3: GESTÃO DE GRUPOS -->
+            <div class="tab-pane fade" id="groups" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0">Grupos do Sistema</h6>
+                    <button class="btn btn-sm btn-primary" onclick="openGroupModal()">
+                        <i class="bi bi-plus-lg me-1"></i> Novo Grupo
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr class="text-muted small text-uppercase">
+                                <th>Nome do Grupo</th>
+                                <th class="text-center">Qtd. Permissões</th>
+                                <th class="text-center">Qtd. Usuários</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for g in grupos %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold text-main">{{ g.name }}</div>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2">
+                                        {{ g.ui_permissions.count }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2">
+                                        {{ g.user_set.count }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-outline-primary" 
+                                                onclick="openGroupModal({{ g.id }}, '{{ g.name }}', [{% for p in g.ui_permissions.all %}{{ p.id }},{% endfor %}])">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        {% if g.name not in "N1,N2,Gestão" %}
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteGroup({{ g.id }}, '{{ g.name }}')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ABA 4: GESTÃO DE RECURSOS (AÇÕES) -->
+            <div class="tab-pane fade" id="resources" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0">Ações e Recursos do Sistema</h6>
+                    <button class="btn btn-sm btn-primary" onclick="openResourceModal()">
+                        <i class="bi bi-plus-lg me-1"></i> Novo Recurso
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr class="text-muted small text-uppercase">
+                                <th>Módulo / Recurso</th>
+                                <th>Slug (Caminho)</th>
+                                <th>Descrição</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% regroup permissoes by module as res_module_list %}
+                            {% for module in res_module_list %}
+                                <tr class="bg-light">
+                                    <td colspan="4" class="py-1 px-3 small fw-bold text-primary">{{ module.grouper }}</td>
+                                </tr>
+                                {% for p in module.list %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-main">{{ p.name }}</div>
+                                    </td>
+                                    <td><code class="text-primary small">{{ p.slug }}</code></td>
+                                    <td class="small text-muted">{{ p.description|truncatechars:60 }}</td>
+                                    <td class="text-center">
+                                        <div class="btn-group">
+                                            <button class="btn btn-sm btn-outline-primary" 
+                                                    onclick="openResourceModal({{ p.id }}, '{{ p.name }}', '{{ p.slug }}', '{{ p.module }}', '{{ p.description|escapejs }}')">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" onclick="deleteResource({{ p.id }}, '{{ p.name }}')">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: EDIÇÃO DE GRUPOS -->
+<div class="modal fade" id="modalGroups" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold">Grupos: <span id="modalUsername"></span></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formUserGroups">
+                    <input type="hidden" id="modalUserId">
+                    {% for g in grupos %}
+                    <div class="form-check mb-2">
+                        <input class="form-check-input group-check" type="checkbox" value="{{ g.id }}" id="chkGroup_{{ g.id }}">
+                        <label class="form-check-label" for="chkGroup_{{ g.id }}">{{ g.name }}</label>
+                    </div>
+                    {% endfor %}
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-primary w-100" onclick="saveUserGroups()">Salvar Grupos</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: GESTÃO DE GRUPO (NOME + PERMISSÕES) -->
+<div class="modal fade" id="modalGroupManage" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" id="groupModalTitle">Gerenciar Grupo</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formGroupManage">
+                    <input type="hidden" id="manageGroupId">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Nome do Grupo</label>
+                        <input type="text" id="manageGroupName" class="form-control form-control-sm" placeholder="Ex: Operadores N3" required>
+                    </div>
+
+                    <label class="form-label small fw-bold mb-2">Permissões do Grupo</label>
+                    <div class="row g-3">
+                        {% regroup permissoes by module as modal_perm_list %}
+                        {% for module in modal_perm_list %}
+                        <div class="col-md-6">
+                            <div class="card bg-light border-0 h-100">
+                                <div class="card-header py-1 px-2 border-0 bg-transparent">
+                                    <span class="fw-bold text-primary" style="font-size: 10px;">{{ module.grouper }}</span>
+                                </div>
+                                <div class="card-body p-2 pt-0">
+                                    {% for p in module.list %}
+                                    <div class="form-check mb-1">
+                                        <input class="form-check-input manage-perm-check" type="checkbox" value="{{ p.id }}" id="modalPerm_{{ p.id }}">
+                                        <label class="form-check-label small" for="modalPerm_{{ p.id }}" style="font-size: 11px;">
+                                            {{ p.name }}
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-sm btn-primary px-4" onclick="saveGroup()">Salvar Grupo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: GESTÃO DE RECURSO (UIPermission) -->
+<div class="modal fade" id="modalResourceManage" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" id="resourceModalTitle">Gerenciar Recurso</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formResourceManage">
+                    <input type="hidden" id="manageResId">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Nome da Ação/Recurso</label>
+                        <input type="text" id="manageResName" class="form-control form-control-sm" placeholder="Ex: Botão de Encerramento" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Slug (ID Único)</label>
+                        <input type="text" id="manageResSlug" class="form-control form-control-sm" placeholder="Ex: btn_close_incident" required>
+                        <div class="form-text small" style="font-size: 9px;">Usado no middleware e template tags.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Módulo/Categoria</label>
+                        <input type="text" id="manageResModule" class="form-control form-control-sm" placeholder="Ex: Incidentes" required>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label small fw-bold">Descrição</label>
+                        <textarea id="manageResDesc" class="form-control form-control-sm" rows="2" placeholder="O que este recurso controla?"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-sm btn-primary px-4" onclick="saveResource()">Salvar Recurso</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: CONFIRMAÇÃO DE SENHA (SUPERUSER) -->
+<div class="modal fade" id="modalPassword" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white py-2">
+                <h6 class="modal-title fw-bold">Confirmação de Segurança</h6>
+            </div>
+            <div class="modal-body">
+                <p class="small">Você está prestes a alterar o status de <strong>Superuser</strong>. Digite <b>SUA SENHA</b> para confirmar:</p>
+                <input type="password" id="confirmPassword" class="form-control form-control-sm" placeholder="Sua senha atual">
+                <input type="hidden" id="promoteUserId">
+                <input type="hidden" id="promoteAction">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-sm btn-danger" onclick="confirmPromote()">Confirmar Alteração</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function togglePermission(el) {
+        const groupId = el.dataset.group;
+        const permId = el.dataset.perm;
+        
+        const formData = new FormData();
+        formData.append('group_id', groupId);
+        formData.append('perm_id', perm_id);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch("{% url 'users:api_toggle_permission' %}", {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                alert("Erro: " + data.error);
+                el.checked = !el.checked; // Reverte se falhou
+            } else {
+                Toastify({
+                    text: data.action === 'added' ? "Permissão concedida!" : "Permissão removida!",
+                    duration: 2000,
+                    backgroundColor: data.action === 'added' ? "#198754" : "#dc3545",
+                }).showToast();
+            }
+        });
+    }
+
+    function openEditGroups(userId, username, currentGroups) {
+        document.getElementById('modalUserId').value = userId;
+        document.getElementById('modalUsername').innerText = username;
+        
+        // Reset e marcar checks
+        document.querySelectorAll('.group-check').forEach(chk => {
+            chk.checked = currentGroups.includes(parseInt(chk.value));
+        });
+        
+        new bootstrap.Modal(document.getElementById('modalGroups')).show();
+    }
+
+    function saveUserGroups() {
+        const userId = document.getElementById('modalUserId').value;
+        const selected = Array.from(document.querySelectorAll('.group-check:checked')).map(c => c.value);
+        
+        const formData = new FormData();
+        formData.append('user_id', userId);
+        selected.forEach(id => formData.append('group_ids[]', id));
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch("{% url 'users:api_update_user_groups' %}", {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert("Erro: " + data.error);
+            }
+        });
+    }
+
+    function toggleSuperuser(userId, username, isSuper) {
+        document.getElementById('promoteUserId').value = userId;
+        document.getElementById('promoteAction').value = isSuper ? 'demote' : 'promote';
+        document.getElementById('confirmPassword').value = '';
+        new bootstrap.Modal(document.getElementById('modalPassword')).show();
+    }
+
+    function confirmPromote() {
+        const userId = document.getElementById('promoteUserId').value;
+        const password = document.getElementById('confirmPassword').value;
+        const action = document.getElementById('promoteAction').value;
+        
+        const formData = new FormData();
+        formData.append('user_id', userId);
+        formData.append('password', password);
+        formData.append('action', action);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch("{% url 'users:api_promote_superuser' %}", {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert("Erro: " + data.error);
+            }
+        });
+    }
+
+    function filterUsers() {
+        const input = document.getElementById("userSearch");
+        const filter = input.value.toLowerCase();
+        const rows = document.querySelectorAll(".user-row");
+        
+        rows.forEach(row => {
+            const username = row.querySelector(".fw-bold").innerText.toLowerCase();
+            row.style.display = username.includes(filter) ? "" : "none";
+        });
+    }
+
+    function openGroupModal(id = '', name = '', permissions = []) {
+        document.getElementById('manageGroupId').value = id;
+        document.getElementById('manageGroupName').value = name;
+        document.getElementById('groupModalTitle').innerText = id ? 'Editar Grupo' : 'Novo Grupo';
+        
+        document.querySelectorAll('.manage-perm-check').forEach(chk => {
+            chk.checked = permissions.includes(parseInt(chk.value));
+        });
+        
+        new bootstrap.Modal(document.getElementById('modalGroupManage')).show();
+    }
+
+    function saveGroup() {
+        const id = document.getElementById('manageGroupId').value;
+        const name = document.getElementById('manageGroupName').value;
+        const perms = Array.from(document.querySelectorAll('.manage-perm-check:checked')).map(c => c.value);
+
+        if (!name) return alert("Nome é obrigatório.");
+
+        const formData = new FormData();
+        formData.append('group_id', id);
+        formData.append('name', name);
+        perms.forEach(p => formData.append('perm_ids[]', p));
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch("{% url 'users:api_manage_group' %}", {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert("Erro: " + data.error);
+            }
+        });
+    }
+
+    function deleteGroup(id, name) {
+        if (!confirm(`Tem certeza que deseja excluir o grupo "${name}"?`)) return;
+
+        const formData = new FormData();
+        formData.append('group_id', id);
+        formData.append('action', 'delete');
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch("{% url 'users:api_manage_group' %}", {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert("Erro: " + data.error);
+            }
+        });
+    }
+
+    // --- RECURSOS (UIPermission) ---
+    function openResourceModal(id = '', name = '', slug = '', module = '', desc = '') {
+        document.getElementById('manageResId').value = id;
+        document.getElementById('manageResName').value = name;
+        document.getElementById('manageResSlug').value = slug;
+        document.getElementById('manageResModule').value = module;
+        document.getElementById('manageResDesc').value = desc;
+        document.getElementById('resourceModalTitle').innerText = id ? 'Editar Recurso' : 'Novo Recurso';
+        
+        new bootstrap.Modal(document.getElementById('modalResourceManage')).show();
+    }
+
+    function saveResource() {
+        const id = document.getElementById('manageResId').value;
+        const name = document.getElementById('manageResName').value;
+        const slug = document.getElementById('manageResSlug').value;
+        const module = document.getElementById('manageResModule').value;
+        const desc = document.getElementById('manageResDesc').value;
+
+        if (!name || !slug || !module) return alert("Campos obrigatórios: Nome, Slug e Módulo.");
+
+        const formData = new FormData();
+        formData.append('res_id', id);
+        formData.append('name', name);
+        formData.append('slug', slug);
+        formData.append('module', module);
+        formData.append('description', desc);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch("{% url 'users:api_manage_resource' %}", {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert("Erro: " + data.error);
+            }
+        });
+    }
+
+    function deleteResource(id, name) {
+        if (!confirm(`Tem certeza que deseja excluir o recurso "${name}"?`)) return;
+
+        const formData = new FormData();
+        formData.append('res_id', id);
+        formData.append('action', 'delete');
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch("{% url 'users:api_manage_resource' %}", {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert("Erro: " + data.error);
+            }
+        });
+    }
+</script>
+{% endblock %}

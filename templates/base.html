@@ -1,4 +1,5 @@
 {% load static %}
+{% load permissions %}
 <!DOCTYPE html>
 <html lang="pt-br" data-bs-theme="light">
 <head>
@@ -250,6 +251,14 @@
                         <i class="bi bi-file-earmark-bar-graph"></i>
                         <span class="nav-text">Relatórios</span>
                     </a>
+
+                    {% can_user 'view_access_manager' as can_manage_access %}
+                    {% if can_manage_access %}
+                    <a href="{% url 'users:acessos' %}" class="nav-link {% if 'acessos' in request.path %}active{% endif %}">
+                        <i class="bi bi-shield-lock"></i>
+                        <span class="nav-text">Acessos</span>
+                    </a>
+                    {% endif %}
                 </div>
 
                 <!-- Perfil e Tema -->
@@ -325,6 +334,26 @@
             });
         });
     </script>
+    <!-- Modal de Criação (Novo Incidente) - Global -->
+    <div class="modal fade" id="modalNovo" tabindex="-1" aria-labelledby="modalNovoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content shadow-lg border-0" style="border-radius: 15px; background: var(--bg-card); color: var(--text-main);">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold" id="modalNovoLabel">
+                        <i class="bi bi-plus-circle-fill me-2" style="color: #008891;"></i>Abrir Novo Incidente
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="conteudoNovo">
+                    <div class="text-center py-5">
+                        <div class="spinner-border" style="color: #008891;" role="status"></div>
+                        <p class="mt-2 text-muted" style="font-size: 11px;">Carregando formulário de abertura...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

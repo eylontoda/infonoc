@@ -28,6 +28,14 @@ urlpatterns = [
     path('api/relatorios/extracao/<str:protocolo>/', views.extracao_detalhada_ajax, name='extracao_detalhada_ajax'),
     path('api/relatorios/extracao/<str:protocolo>/pdf/', views.gerar_relatorio_pdf, name='gerar_relatorio_pdf'),
     
+    # [RBAC] Gerenciamento de Acessos
+    path('acessos/', views.AcessosView.as_view(), name='acessos'),
+    path('api/acessos/toggle/', views.api_toggle_permission, name='api_toggle_permission'),
+    path('api/acessos/user-groups/', views.api_update_user_groups, name='api_update_user_groups'),
+    path('api/acessos/promote-superuser/', views.api_promote_superuser, name='api_promote_superuser'),
+    path('api/acessos/manage-group/', views.api_manage_group, name='api_manage_group'),
+    path('api/acessos/manage-resource/', views.api_manage_resource, name='api_manage_resource'),
+    
 
     # ==============================================================================
     # [NOVO] ROTAS HTMX / OFFCANVAS

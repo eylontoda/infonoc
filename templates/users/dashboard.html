@@ -122,6 +122,12 @@
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-sm text-white fw-bold shadow-sm" 
+                        style="background-color: #008891; border-radius: 8px; font-size: 11px; height: 31px; border: none;" 
+                        hx-get="/novo-ajax/" hx-target="#conteudoNovo" 
+                        data-bs-toggle="modal" data-bs-target="#modalNovo">
+                    <i class="bi bi-plus-lg me-1"></i> Novo incidente
+                </button>
                 <div class="search-wrap">
                     <i class="bi bi-search search-icon"></i>
                     <input type="text" id="inputBuscaCard" class="search-input" placeholder="Buscar protocolo ou designador...">
